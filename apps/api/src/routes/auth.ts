@@ -1,13 +1,15 @@
 import type { FastifyInstance } from "fastify";
+import { randomBytes } from "node:crypto";
 import { db, audit } from "../db/index.js";
 import { nowIso, uuid } from "../config.js";
-import { hashPassword, signJwt, verifyPassword } from "../auth-crypto.js";
+import { hashApiKey, hashPassword, signJwt, verifyPassword } from "../auth-crypto.js";
 import { charge } from "../credits.js";
 import type { JwtClaims } from "../auth-types.js";
 
 /**
  * Human auth: register (creates tenant + owner user + starter key), login
- * (JWT), session profile, and API-key issuing for machine access.
+ * (JWT), session profile, and API-key issuing for machine access. Keys are
+ * stored hashed — plaintext is returned exactly once, at creation.
  */
 export function registerAuthRoutes(app: FastifyInstance): void {
   app.post("/v1/auth/register", async (request, reply) => {
@@ -28,12 +30,14 @@ export function registerAuthRoutes(app: FastifyInstance): void {
 
     const tenantId = uuid();
     const userId = uuid();
-    const apiKey = `sk_${randomToken(24)}`;
+    const apiKey = `sk_${randomToken(32)}`;
     await db().run("INSERT INTO tenants(id,name,created_at) VALUES(?,?,?)", [tenantId, orgName, nowIso()]);
     await db().run("INSERT INTO users(id,tenant_id,email,password_hash,role,created_at) VALUES(?,?,?,?,?,?)", [
       userId, tenantId, email, hashPassword(password), "owner", nowIso(),
     ]);
-    await db().run("INSERT INTO api_keys(key,tenant_id,label) VALUES(?,?,?)", [apiKey, tenantId, "default"]);
+    await db().run("INSERT INTO api_keys(key,key_hash,prefix,tenant_id,label) VALUES(?,?,?,?,?)", [
+      `hashed:${hashApiKey(apiKey)}`, hashApiKey(apiKey), apiKey.slice(0, 10), tenantId, "default",
+    ]);
     await charge(tenantId, 500, "grant:signup");
     await audit(tenantId, "auth.register", userId, { email });
 
@@ -63,27 +67,35 @@ export function registerAuthRoutes(app: FastifyInstance): void {
   });
 
   app.get("/v1/auth/api-keys", async (request) => {
-    const rows = await db().all<{ key: string; label: string; disabled_at: string | null }>(
-      "SELECT key,label,disabled_at FROM api_keys WHERE tenant_id=? ORDER BY created_at",
+    // Hashed storage: only the display prefix survives, never the plaintext.
+    const rows = await db().all<{ prefix: string | null; label: string; disabled_at: string | null }>(
+      "SELECT prefix,label,disabled_at FROM api_keys WHERE tenant_id=? ORDER BY rowid",
       [request.tenant!.id],
     );
-    return { apiKeys: rows.filter((r) => r.disabled_at === null) };
+    return {
+      apiKeys: rows
+        .filter((r) => r.disabled_at === null)
+        .map((r) => ({ key: `${r.prefix ?? "sk_"}…`, label: r.label })),
+    };
   });
 
   app.post("/v1/auth/api-keys", async (request, reply) => {
     const body = (request.body ?? {}) as { label?: string };
-    const key = `sk_${randomToken(24)}`;
-    await db().run("INSERT INTO api_keys(key,tenant_id,label) VALUES(?,?,?)", [
-      key, request.tenant!.id, (body.label ?? "").trim() || "issued",
+    const key = `sk_${randomToken(32)}`;
+    await db().run("INSERT INTO api_keys(key,key_hash,prefix,tenant_id,label) VALUES(?,?,?,?,?)", [
+      `hashed:${hashApiKey(key)}`, hashApiKey(key), key.slice(0, 10), request.tenant!.id,
+      (body.label ?? "").trim() || "issued",
     ]);
-    await audit(request.tenant!.id, "apikey.issue", key, {});
+    await audit(request.tenant!.id, "apikey.issue", key.slice(0, 10), {});
     return reply.code(201).send({ apiKey: key });
   });
 }
 
+/** Cryptographically secure key material (was Math.random — never again). */
 function randomToken(len: number): string {
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = randomBytes(len);
   let out = "";
-  for (let i = 0; i < len; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < len; i++) out += alphabet[bytes[i]! % alphabet.length];
   return out;
 }

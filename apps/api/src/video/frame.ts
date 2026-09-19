@@ -7,7 +7,7 @@ import { frameCue, frameScene, activeWordIndex } from "./timeline.js";
  * timeline — change the narration timing and the visuals follow.
  */
 
-const PALETTES: Array<[string, string, string]> = [
+export const PALETTES: Array<[string, string, string]> = [
   ["#f6d8a8", "#e9a6a0", "#2b2118"],
   ["#d8e6f2", "#9db8d9", "#1c2430"],
   ["#f2d9e6", "#b48ac9", "#2a1e2e"],
@@ -15,13 +15,13 @@ const PALETTES: Array<[string, string, string]> = [
   ["#e8e6f6", "#8f86c9", "#1e1b30"],
 ];
 
-const ACCENT = "#ddf24b";
+export const ACCENT = "#ddf24b";
 
-function esc(s: string): string {
+export function esc(s: string): string {
   return s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c] ?? c);
 }
 
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a |= 0;
@@ -32,7 +32,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function productGroup(seed: number, cx: number, cy: number, scale: number, opacity: number): string {
+export function productGroup(seed: number, cx: number, cy: number, scale: number, opacity: number): string {
   const rand = mulberry32(seed);
   const [,, ink] = PALETTES[seed % PALETTES.length]!;
   const accent = `hsl(${20 + Math.floor(rand() * 40)} 70% 58%)`;
@@ -58,7 +58,7 @@ function productGroup(seed: number, cx: number, cy: number, scale: number, opaci
     <rect x="${-pw * 0.26}" y="${-ph * 0.05}" width="${pw * 0.52}" height="${ph * 0.3}" rx="${pw * 0.05}" fill="#ffffff" opacity="0.88"/>`);
 }
 
-function captionSvg(plan: RenderPlan, timeSec: number): string {
+export function captionSvg(plan: RenderPlan, timeSec: number): string {
   const cue = frameCue(plan, timeSec);
   if (!cue) return "";
   const fontSize = Math.round(plan.width * 0.062);
@@ -84,7 +84,7 @@ function captionSvg(plan: RenderPlan, timeSec: number): string {
   return `<g>${parts.join("")}</g>`;
 }
 
-function endCard(plan: RenderPlan, alpha: number): string {
+export function endCard(plan: RenderPlan, alpha: number): string {
   const fs = Math.round(plan.width * 0.095);
   return `<g opacity="${alpha.toFixed(2)}">
     <text x="${(plan.width / 2).toFixed(1)}" y="${(plan.height * 0.42).toFixed(1)}" text-anchor="middle" font-family="Arial" font-weight="900" font-size="${fs}" fill="#ffffff">READY TO POST</text>

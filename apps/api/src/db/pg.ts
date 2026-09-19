@@ -16,7 +16,8 @@ export async function createPostgres(dataDir?: string): Promise<DbClient> {
       await pg.exec(sql);
     },
     async run(sql: string, params: unknown[] = []) {
-      await pg.query(numbered(sql), params);
+      const result = await pg.query(numbered(sql), params);
+      return { changes: (result as { affectedRows?: number }).affectedRows ?? 0 };
     },
     async get<T>(sql: string, params: unknown[] = []) {
       const result = await pg.query(numbered(sql), params);

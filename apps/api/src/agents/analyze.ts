@@ -18,27 +18,39 @@ export interface PacingModel {
   hasAudio: boolean;
 }
 
+/**
+ * Speech bursts from the silencedetect timeline — timeline minus silences,
+ * with an even-split fallback when the clip has no usable audio. Exported so
+ * the AdDNA parser (dna.ts) fuses the same signal with shot changes.
+ */
+export function speechSegmentsFromSilences(
+  durationSec: number,
+  silences: Array<{ start: number; end: number }>,
+  hasAudio: boolean,
+): Array<{ startSec: number; endSec: number }> {
+  const segments: Array<{ startSec: number; endSec: number }> = [];
+  let cursor = 0;
+  for (const s of silences) {
+    if (s.start - cursor >= 0.3) segments.push({ startSec: cursor, endSec: s.start });
+    cursor = Math.max(cursor, s.end);
+  }
+  if (durationSec - cursor >= 0.3) segments.push({ startSec: cursor, endSec: durationSec });
+  if (!hasAudio || segments.length === 0) {
+    const fallback = Math.max(2, Math.round(durationSec / 3));
+    for (let i = 0; i < fallback; i++) {
+      segments.push({ startSec: (durationSec / fallback) * i, endSec: (durationSec / fallback) * (i + 1) });
+    }
+  }
+  return segments;
+}
+
 export async function analyzeReference(videoBuffer: Buffer): Promise<PacingModel> {
   const dir = mkdtempSync(join(tmpdir(), "studio-analyze-"));
   try {
     const videoPath = join(dir, "reference.mp4");
     writeFileSync(videoPath, videoBuffer);
     const { durationSec, hasAudio, silences } = await probe(videoPath);
-
-    // speech = timeline minus silences
-    const segments: Array<{ startSec: number; endSec: number }> = [];
-    let cursor = 0;
-    for (const s of silences) {
-      if (s.start - cursor >= 0.3) segments.push({ startSec: cursor, endSec: s.start });
-      cursor = Math.max(cursor, s.end);
-    }
-    if (durationSec - cursor >= 0.3) segments.push({ startSec: cursor, endSec: durationSec });
-    if (!hasAudio || segments.length === 0) {
-      const fallback = Math.max(2, Math.round(durationSec / 3));
-      for (let i = 0; i < fallback; i++) {
-        segments.push({ startSec: (durationSec / fallback) * i, endSec: (durationSec / fallback) * (i + 1) });
-      }
-    }
+    const segments = speechSegmentsFromSilences(durationSec, silences, hasAudio);
     const mean = segments.reduce((sum, s) => sum + (s.endSec - s.startSec), 0) / segments.length;
     return { durationSec, segmentCount: segments.length, meanSegmentSec: mean, segments, hasAudio };
   } finally {
@@ -46,7 +58,7 @@ export async function analyzeReference(videoBuffer: Buffer): Promise<PacingModel
   }
 }
 
-async function probe(videoPath: string): Promise<{ durationSec: number; hasAudio: boolean; silences: Array<{ start: number; end: number }> }> {
+export async function probe(videoPath: string): Promise<{ durationSec: number; hasAudio: boolean; silences: Array<{ start: number; end: number }> }> {
   const stderr = await ffmpegStderr([
     "-hide_banner", "-i", videoPath,
     "-af", "silencedetect=noise=-30dB:d=0.35",
@@ -71,7 +83,7 @@ async function probe(videoPath: string): Promise<{ durationSec: number; hasAudio
   return { durationSec, hasAudio, silences };
 }
 
-function ffmpegStderr(args: string[]): Promise<string> {
+export function ffmpegStderr(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn("ffmpeg", args, { windowsHide: true });
     let stderr = "";

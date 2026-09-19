@@ -34,7 +34,9 @@ const app = http.createServer((req, res) => {
     req.on("data", (c) => (body += c));
     req.on("end", () => {
       const id = `task_${Math.random().toString(36).slice(2, 10)}`;
-      tasks.set(id, { id, createdAt: Date.now(), prompt: safeParse(body).prompt ?? "" });
+      const parsed = safeParse(body);
+      const prompt = typeof parsed.prompt === "string" ? parsed.prompt : "";
+      tasks.set(id, { id, createdAt: Date.now(), prompt });
       res.writeHead(201, { "content-type": "application/json" });
       res.end(JSON.stringify({ id }));
     });

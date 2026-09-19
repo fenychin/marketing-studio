@@ -106,7 +106,7 @@ const VARIANTS: Record<string, Record<"hook" | "value" | "cta", Array<(p: Produc
   },
 };
 
-function firstClause(description?: string): string | undefined {
+export function firstClause(description?: string): string | undefined {
   const clause = description?.split(/[.。!!??]/).map((s) => s.trim()).filter(Boolean)[0];
   return clause ? clause.charAt(0).toUpperCase() + clause.slice(1) : undefined;
 }

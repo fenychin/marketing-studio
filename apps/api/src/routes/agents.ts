@@ -10,16 +10,19 @@ export function registerAgentRoutes(app: FastifyInstance): void {
       productAssetId?: string;
       transcript?: string;
       tone?: string;
+      mode?: string;
     };
     if (!body.referenceAssetId) {
       return reply.code(400).send({ error: { code: "missing_reference", message: "referenceAssetId is required." } });
     }
+    const mode = body.mode === "strict" ? "strict" as const : "loose" as const;
     try {
       const job = await runAdReferencePipeline(request.tenant!.id, {
         referenceAssetId: body.referenceAssetId,
         productAssetId: body.productAssetId,
         transcript: body.transcript,
         tone: body.tone,
+        mode,
       });
       return reply.code(201).send({ job });
     } catch (error) {
@@ -30,15 +33,25 @@ export function registerAgentRoutes(app: FastifyInstance): void {
     }
   });
 
-  /** Drop a product URL → scrape → script → one-click ad. */
+  /** Drop a product URL → scrape → per-platform scripts → batch video jobs. */
   app.post("/v1/agents/product-link", async (request, reply) => {
-    const body = (request.body ?? {}) as { url?: string; tone?: string };
+    const body = (request.body ?? {}) as {
+      url?: string;
+      tone?: string;
+      platforms?: string[];
+      variantsPerPlatform?: number;
+    };
     if (!body.url || body.url.trim().length < 4) {
       return reply.code(400).send({ error: { code: "invalid_url", message: "A product URL is required." } });
     }
     try {
-      const job = await runProductLinkPipeline(request.tenant!.id, { url: body.url.trim(), tone: body.tone });
-      return reply.code(201).send({ job });
+      const jobs = await runProductLinkPipeline(request.tenant!.id, {
+        url: body.url.trim(),
+        tone: body.tone,
+        platforms: body.platforms,
+        variantsPerPlatform: body.variantsPerPlatform,
+      });
+      return reply.code(201).send({ jobs, job: jobs[0] });
     } catch (error) {
       if (error instanceof SubmissionError) {
         return reply.code(error.statusCode).send({ error: { code: error.code, message: error.message } });

@@ -3,3 +3,10 @@ dist/
 .data/
 .env
 *.log
+# third-party reference project (license forbids redistribution) — keep out of the repo
+hypit-main/
+# python venvs
+.venv/
+**/.venv/
+# macOS
+.DS_Store

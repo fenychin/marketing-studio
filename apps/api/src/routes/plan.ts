@@ -16,7 +16,7 @@ export function registerPlanRoutes(app: FastifyInstance): void {
     const tenantId = request.tenant!.id;
     const body = (request.body ?? {}) as Record<string, unknown>;
     const balanceBefore = await balance(tenantId);
-    const agent = body.agent as { type?: string; referenceAssetId?: string; transcript?: string; tone?: string; url?: string } | undefined;
+    const agent = body.agent as { type?: string; referenceAssetId?: string; transcript?: string; tone?: string; mode?: string; url?: string; platforms?: string[] } | undefined;
     const templateId = body.templateId as string | undefined;
 
     try {
@@ -32,6 +32,7 @@ export function registerPlanRoutes(app: FastifyInstance): void {
           referenceAssetId: agent.referenceAssetId,
           transcript: agent.transcript,
           tone: agent.tone,
+          mode: agent.mode === "strict" ? "strict" : "loose",
         });
         const model = resolveModel("studio-render-v1", "video") ?? defaultModel("video");
         const cost = { creditsPerUnit: model.creditsPerUnit, count: 1, total: model.creditsPerUnit };
@@ -43,6 +44,7 @@ export function registerPlanRoutes(app: FastifyInstance): void {
           composer: composed.composer,
           transcriptSource: composed.transcriptSource,
           pacing: { beats: composed.pacing.segmentCount, durationSec: composed.pacing.durationSec },
+          report: composed.report,
         });
       }
 
@@ -50,15 +52,27 @@ export function registerPlanRoutes(app: FastifyInstance): void {
         if (!agent.url) {
           return planResponse(false, ["invalid_url: url is required."], null, null, balanceBefore, { agent: "product-link" });
         }
-        const composed = await composeProductLink({ url: agent.url, tone: agent.tone });
+        const composed = await composeProductLink(tenantId, {
+          url: agent.url,
+          tone: agent.tone,
+          platforms: agent.platforms,
+        });
         const model = resolveModel("studio-render-v1", "video") ?? defaultModel("video");
-        const cost = { creditsPerUnit: model.creditsPerUnit, count: 1, total: model.creditsPerUnit };
+        const jobCount = composed.platforms.length;
+        const cost = { creditsPerUnit: model.creditsPerUnit, count: jobCount, total: model.creditsPerUnit * jobCount };
         return planResponse(balanceBefore >= cost.total, balanceBefore < cost.total ? [`insufficient_credits: needs ${cost.total} credits`] : [], cost, model.id, balanceBefore, {
           agent: "product-link",
-          script: composed.script,
-          durationSec: 10,
+          script: composed.platforms[0]?.script ?? "",
           composer: composed.composer,
-          product: { name: composed.product.name, price: composed.product.price },
+          product: { name: composed.product.name, price: composed.product.price, images: composed.images.length },
+          platforms: composed.platforms.map((p) => ({
+            platform: p.platform,
+            script: p.script,
+            durationSec: p.dna.durationSec,
+            beats: p.dna.beats.length,
+            energyMatch: p.energyMatch,
+            reportScore: p.report.score,
+          })),
         });
       }
 

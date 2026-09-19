@@ -89,6 +89,8 @@ export async function migrate(db: DbClient): Promise<void> {
     "ALTER TABLE generations ADD COLUMN review_status TEXT",
     "ALTER TABLE generations ADD COLUMN review_note TEXT",
     "ALTER TABLE jobs ADD COLUMN free_resample_of TEXT",
+    "ALTER TABLE api_keys ADD COLUMN key_hash TEXT",
+    "ALTER TABLE api_keys ADD COLUMN prefix TEXT",
   ];
   for (const sql of additions) {
     try {
@@ -96,6 +98,27 @@ export async function migrate(db: DbClient): Promise<void> {
     } catch {
       /* column already exists */
     }
+  }
+  await backfillApiKeyHashes(db);
+}
+
+/**
+ * API keys are stored hashed (sha256) — plaintext is shown once at issue
+ * time and never persisted. Legacy rows (plaintext `key`, NULL key_hash) are
+ * backfilled in place and their plaintext destroyed by overwriting the key
+ * column; the random key prefix is kept for display.
+ */
+async function backfillApiKeyHashes(db: DbClient): Promise<void> {
+  const { hashApiKey } = await import("../auth-crypto.js");
+  const rows = await db.all<{ rowid: number; key: string }>(
+    "SELECT rowid AS rowid, key FROM api_keys WHERE key_hash IS NULL AND key NOT LIKE 'hashed:%'",
+  );
+  for (const row of rows) {
+    const hash = hashApiKey(row.key);
+    await db.run(
+      "UPDATE api_keys SET key_hash=?, prefix=substr(key,1,10), key=? WHERE rowid=?",
+      [hash, `hashed:${hash}`, row.rowid],
+    );
   }
 }
 
@@ -105,7 +128,8 @@ export async function seed(): Promise<void> {
   if ((count?.n ?? 0) > 0) return;
 
   const insertTenant = "INSERT INTO tenants(id,name,created_at) VALUES(?,?,?)";
-  const insertKey = "INSERT INTO api_keys(key,tenant_id,label) VALUES(?,?,?)";
+  const insertKey = "INSERT INTO api_keys(key,key_hash,prefix,tenant_id,label) VALUES(?,?,?,?,?)";
+  const { hashApiKey } = await import("../auth-crypto.js");
   let alphaId = "";
   for (const [name, key] of [
     ["Alpha Studio (demo)", "sk_demo_alpha"],
@@ -113,8 +137,9 @@ export async function seed(): Promise<void> {
   ] as const) {
     const id = uuid();
     if (!alphaId) alphaId = id;
+    const hash = hashApiKey(key);
     await db.run(insertTenant, [id, name, nowIso()]);
-    await db.run(insertKey, [key, id, "demo key"]);
+    await db.run(insertKey, [`hashed:${hash}`, hash, key.slice(0, 10), id, "demo key"]);
     await db.run("INSERT INTO credit_ledger(id,tenant_id,delta,reason,created_at) VALUES(?,?,?,?,?)", [
       uuid(), id, 1000, "grant:demo", nowIso(),
     ]);

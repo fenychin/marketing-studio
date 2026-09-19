@@ -17,7 +17,9 @@ export default function App() {
     return () => window.removeEventListener("studio:refetch", handler);
   }, []);
 
-  const signedIn = getToken() !== null || location.pathname === "/login";
+  // Signed in via JWT, or via the demo-mode apiKey the user clicked through.
+  // (getApiKey() has a built-in default, so only an explicitly stored key counts.)
+  const signedIn = getToken() !== null || localStorage.getItem("studio.apiKey") !== null || location.pathname === "/login";
   if (!signedIn) {
     return <Login />;
   }

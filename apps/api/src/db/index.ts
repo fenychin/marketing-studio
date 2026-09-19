@@ -8,7 +8,7 @@ import { nowIso, uuid } from "../config.js";
 
 export interface DbClient {
   exec(sql: string): Promise<void>;
-  run(sql: string, params?: unknown[]): Promise<void>;
+  run(sql: string, params?: unknown[]): Promise<{ changes: number }>;
   get<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | undefined>;
   all<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
 }

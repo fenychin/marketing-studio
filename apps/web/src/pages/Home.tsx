@@ -1,16 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { PromptBar } from "../components/PromptBar";
 import { HeroCarousel } from "../components/HeroCarousel";
 import { TemplateGrid } from "../components/TemplateGrid";
 import { RecreateModal, AdReferenceModal, ProductLinkModal } from "../components/ToolModals";
-import type { TemplateDto, JobDto, CreditState } from "@studio/shared";
+import type { TemplateDto, CreditState } from "@studio/shared";
 import { useEffect } from "react";
 
 export function Home() {
-  const navigate = useNavigate();
   const [recreateTarget, setRecreateTarget] = useState<TemplateDto | null>(null);
   const [adOpen, setAdOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -35,16 +33,6 @@ export function Home() {
     window.addEventListener("studio:tool", handler);
     return () => window.removeEventListener("studio:tool", handler);
   }, []);
-
-  const recentJobs = useQuery({
-    queryKey: ["jobs", "recent"],
-    queryFn: () => api<{ jobs: JobDto[] }>("/v1/generations"),
-    refetchInterval: 2500,
-  });
-  useEffect(() => {
-    const active = recentJobs.data?.jobs.some((j) => j.status === "queued" || j.status === "running");
-    if (active) navigate("/generations");
-  }, [recentJobs.data, navigate]);
 
   return (
     <div className="pb-10">

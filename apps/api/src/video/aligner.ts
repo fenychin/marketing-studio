@@ -36,7 +36,7 @@ function splitSentences(text: string): string[] {
     .filter(Boolean);
 }
 
-function distributeWords(sentence: string, startSec: number, endSec: number): AlignedWord[] {
+export function distributeWords(sentence: string, startSec: number, endSec: number): AlignedWord[] {
   const words = sentence.split(/\s+/).filter(Boolean);
   const total = words.reduce((sum, w) => sum + WORD_WEIGHT(w), 0) || 1;
   const span = endSec - startSec;

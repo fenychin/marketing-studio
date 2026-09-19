@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { db, audit } from "../db/index.js";
 import { nowIso, uuid } from "../config.js";
 import { charge } from "../credits.js";
-import { signPayload } from "../auth-crypto.js";
+import { signPayload, timingSafeEqHex } from "../auth-crypto.js";
 
 /**
  * Billing: checkout sessions + credit top-ups. The mock provider completes
@@ -83,7 +83,7 @@ export function registerBillingRoutes(app: FastifyInstance): void {
       return reply.code(400).send({ error: { code: "bad_webhook", message: "Missing webhook secret or signature." } });
     }
     const raw = typeof request.body === "string" ? request.body : JSON.stringify(request.body ?? {});
-    if (signPayload(raw, secret) !== signature) {
+    if (!timingSafeEqHex(signPayload(raw, secret), signature)) {
       return reply.code(401).send({ error: { code: "bad_signature", message: "Signature mismatch." } });
     }
     const body = (typeof request.body === "string" ? JSON.parse(request.body) : request.body) as { sessionId?: string };

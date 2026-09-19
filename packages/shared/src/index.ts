@@ -1,5 +1,7 @@
 /** API contract shared by apps/api and apps/web. */
 
+export * from "./ad-dna.js";
+
 export type Kind = "image" | "video";
 
 export type AspectRatio = "1:1" | "3:4" | "4:3" | "9:16" | "16:9";

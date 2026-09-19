@@ -12,8 +12,10 @@ export interface GenerateContext {
   references: ReferencePayload[];
   seedBase: number;
   reportProgress(percent: number, note?: string): void;
-  /** Store produced bytes; returns the public URL assigned by the artifact store. */
-  storeArtifact(buffer: Buffer, mime: string): Promise<void>;
+  /** Cooperative cancellation: throws when the job is no longer running. */
+  throwIfCancelled(): Promise<void>;
+  /** Store produced bytes; optional meta is persisted on the generation row. */
+  storeArtifact(buffer: Buffer, mime: string, meta?: Record<string, string>): Promise<void>;
 }
 
 export interface ProducedArtifact {

@@ -51,7 +51,39 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
   });
   const list = models.data?.models ?? [];
   const model = list.find((m) => m.id === modelId) ?? list[0];
-  const ratios = kind === "video" ? VIDEO_RATIOS : IMAGE_RATIOS;
+
+  // Parameter enumerations come from the model catalog (ModelInfo), with
+  // generic fallbacks — no hardcoded chips that lie about engine limits.
+  const ratios: AspectRatio[] = model?.aspectRatios?.length ? model.aspectRatios : kind === "video" ? VIDEO_RATIOS : IMAGE_RATIOS;
+  const resolutions: string[] = model?.resolutions?.length ? model.resolutions : RESOLUTIONS;
+  const durations: number[] = (() => {
+    if (!model) return DURATIONS;
+    if (model.durations && model.durations.length > 0) return model.durations;
+    if (model.durationRange) {
+      const { min, max } = model.durationRange;
+      const out = new Set<number>();
+      for (let i = 0; i < 4; i++) out.add(Math.round(min + ((max - min) * i) / 3));
+      return [...out];
+    }
+    return DURATIONS;
+  })();
+
+  useEffect(() => {
+    if (ratios.length > 0 && !ratios.includes(aspect)) setAspect(ratios[0]!);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ratios.join(",")]);
+  useEffect(() => {
+    if (resolutions.length > 0 && !resolutions.includes(resolution)) {
+      setResolution(resolutions[Math.floor(resolutions.length / 2)]!);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolutions.join(",")]);
+  useEffect(() => {
+    if (durations.length > 0 && !durations.includes(duration)) {
+      setDuration(durations[Math.floor(durations.length / 2)]!);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [durations.join(",")]);
 
   const upload = useMutation({
     mutationFn: async (file: File) => {
@@ -238,13 +270,13 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
               {aspect}
             </button>
             {kind === "video" && (
-              <button className="chip" onClick={() => setResolution((r) => cycle(RESOLUTIONS, r))}>
+              <button className="chip" onClick={() => setResolution((r) => cycle(resolutions, r))}>
                 <Icon path={icons.image} size={12} />
                 {resolution}
               </button>
             )}
             {kind === "video" && (
-              <button className="chip" onClick={() => setDuration((d) => cycle(DURATIONS, d))}>
+              <button className="chip" onClick={() => setDuration((d) => cycle(durations, d))}>
                 <Icon path={icons.play} size={12} />
                 {duration}s
               </button>

@@ -49,9 +49,12 @@ function useAgent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ path, json }: { path: string; json: unknown }) =>
-      api<{ job: { id: string } }>(path, { method: "POST", json }),
-    onSuccess: () => {
+      api<{ job?: { id: string }; jobs?: Array<{ id: string }> }>(path, { method: "POST", json }),
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      if (data.jobs && data.jobs.length > 1) {
+        window.alert(`${data.jobs.length} ad jobs queued — one per platform.`);
+      }
       navigate("/generations");
     },
     onError: (e) => window.alert(e instanceof ApiError ? e.message : "Request failed"),
@@ -119,24 +122,14 @@ export function RecreateModal({ template, onClose }: { template: TemplateDto; on
             disabled={upload.isPending || create.isPending}
             onClick={() =>
               create.mutate({
-                path: "/v1/generations",
+                // Server-side slot interpolation ({PRODUCT}/{AVATAR}/{EDIT}) —
+                // the raw template prompt never leaves the backend.
+                path: `/v1/templates/${template.id}/recreate`,
                 json: {
-                  kind: template.kind,
-                  model: template.kind === "video" ? "studio-motion-v1" : "studio-image-v1",
-                  prompt: template.promptTemplate,
-                  templateId: template.id,
-                  params: {
-                    aspectRatio: template.aspectRatio,
-                    count: 4,
-                    ...(product || avatar
-                      ? {
-                          references: [
-                            ...(product ? [{ assetId: product.id, role: "product" }] : []),
-                            ...(avatar ? [{ assetId: avatar.id, role: "avatar" }] : []),
-                          ],
-                        }
-                      : {}),
-                  },
+                  productAssetId: product?.id,
+                  avatarAssetId: avatar?.id,
+                  edit: edit.trim() || undefined,
+                  count: 4,
                 },
               })
             }
@@ -164,6 +157,7 @@ export function AdReferenceModal({ onClose }: { onClose: () => void }) {
   const [video, setVideo] = useState<AssetDto | undefined>();
   const [transcript, setTranscript] = useState("");
   const [tone, setTone] = useState("energetic");
+  const [strict, setStrict] = useState(false);
 
   return (
     <Modal title="Ad Reference" onClose={onClose} width="max-w-2xl">
@@ -220,6 +214,18 @@ export function AdReferenceModal({ onClose }: { onClose: () => void }) {
           </select>
         </div>
       </div>
+      <label className="mb-4 flex cursor-pointer items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#101010] px-3.5 py-2.5">
+        <input
+          type="checkbox"
+          checked={strict}
+          onChange={(e) => setStrict(e.target.checked)}
+          className="h-3.5 w-3.5 accent-[#ddf24b]"
+        />
+        <span>
+          <span className="block text-[12px] font-semibold text-neutral-200">Strict replica gates</span>
+          <span className="block text-[10px] text-[#6f6f6f]">Refuse to render if the clone drifts off the reference rhythm</span>
+        </span>
+      </label>
       <button
         disabled={!video || agent.isPending}
         onClick={() =>
@@ -229,6 +235,7 @@ export function AdReferenceModal({ onClose }: { onClose: () => void }) {
               referenceAssetId: video!.id,
               transcript: transcript.trim() || undefined,
               tone,
+              mode: strict ? "strict" : "loose",
             },
           })
         }
@@ -240,10 +247,20 @@ export function AdReferenceModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+const PLATFORM_CHIPS = [
+  { id: "tiktok", label: "TikTok" },
+  { id: "reels", label: "Reels" },
+  { id: "shorts", label: "Shorts" },
+];
+
 export function ProductLinkModal({ onClose }: { onClose: () => void }) {
   const agent = useAgent();
   const [url, setUrl] = useState("");
   const [tone, setTone] = useState("energetic");
+  const [platforms, setPlatforms] = useState<string[]>(PLATFORM_CHIPS.map((p) => p.id));
+
+  const togglePlatform = (id: string) =>
+    setPlatforms((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
 
   return (
     <Modal title="Product Link" onClose={onClose} width="max-w-2xl">
@@ -262,6 +279,27 @@ export function ProductLinkModal({ onClose }: { onClose: () => void }) {
         />
       </div>
       <div className="mb-4">
+        <div className="mb-1.5 text-[12px] text-[#9a9a9a]">Platforms — one ad per selection (✦{PLATFORM_CHIPS.length * 60} for all three)</div>
+        <div className="flex gap-2">
+          {PLATFORM_CHIPS.map((chip) => {
+            const active = platforms.includes(chip.id);
+            return (
+              <button
+                key={chip.id}
+                onClick={() => togglePlatform(chip.id)}
+                className={`rounded-xl border px-3.5 py-2 text-[12px] font-bold uppercase tracking-wide transition-colors ${
+                  active
+                    ? "border-[#ddf24b] bg-[#ddf24b]/10 text-[#ddf24b]"
+                    : "border-[#2e2e2e] bg-[#101010] text-[#6f6f6f] hover:border-[#4a4a4a]"
+                }`}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="mb-4">
         <div className="mb-1.5 text-[12px] text-[#9a9a9a]">Tone</div>
         <select
           value={tone}
@@ -274,11 +312,11 @@ export function ProductLinkModal({ onClose }: { onClose: () => void }) {
         </select>
       </div>
       <button
-        disabled={url.trim().length < 4 || agent.isPending}
-        onClick={() => agent.mutate({ path: "/v1/agents/product-link", json: { url: url.trim(), tone } })}
+        disabled={url.trim().length < 4 || platforms.length === 0 || agent.isPending}
+        onClick={() => agent.mutate({ path: "/v1/agents/product-link", json: { url: url.trim(), tone, platforms } })}
         className="w-full rounded-xl bg-gradient-to-r from-[#e80f7c] to-[#f0559a] py-3 text-[13px] font-black uppercase tracking-[0.12em] text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {agent.isPending ? "Fetching product…" : "Continue"}
+        {agent.isPending ? "Fetching product…" : platforms.length > 1 ? `Make ${platforms.length} ads` : "Continue"}
       </button>
     </Modal>
   );

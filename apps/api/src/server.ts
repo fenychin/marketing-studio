@@ -15,6 +15,7 @@ import { registerAgentRoutes } from "./routes/agents.js";
 import { registerPlanRoutes } from "./routes/plan.js";
 import { registerCredentialRoutes } from "./routes/credentials.js";
 import { registerEndpointRoutes } from "./routes/endpoints.js";
+import { registerRenderTemplateRoutes } from "./routes/render-templates.js";
 
 export async function buildServer(config: Config): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: "warn" } });
@@ -38,6 +39,7 @@ export async function buildServer(config: Config): Promise<FastifyInstance> {
   registerPlanRoutes(app);
   registerCredentialRoutes(app);
   registerEndpointRoutes(app);
+  registerRenderTemplateRoutes(app);
 
   app.setErrorHandler((error, _request, reply) => {
     const err = error as Error & { statusCode?: number };

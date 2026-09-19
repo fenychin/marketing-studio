@@ -3,8 +3,9 @@ import { subscribeJob } from "../bus.js";
 import { balance } from "../credits.js";
 import { db } from "../db/index.js";
 import { generationsForJobs, getGeneration, getJob, jobToDto, listFavoriteGenerations, listJobs } from "../dto.js";
-import { jobWithGenerations, kindOf, SubmissionError, submitGeneration } from "../jobs.js";
-import type { CreateGenerationRequest, JobStatus } from "@studio/shared";
+import { jobWithGenerations, kindOf, SubmissionError, submitGeneration, cancelJob } from "../jobs.js";
+import { buildRecreateReport } from "../agents/report.js";
+import type { AdDNA, AspectRatio, CreateGenerationRequest, GenerationParams, JobStatus } from "@studio/shared";
 
 function parseCreate(body: unknown): CreateGenerationRequest {
   const raw = (body ?? {}) as Record<string, unknown>;
@@ -54,6 +55,109 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
     const job = await getJob(id, request.tenant!.id);
     if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
     return { job: await jobWithGenerations(request.tenant!.id, job) };
+  });
+
+  /** Cancel a queued/running job; the credit hold is released once-only. */
+  app.delete("/v1/generations/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+      const cancelled = await cancelJob(request.tenant!.id, id);
+      return reply.code(cancelled ? 200 : 409).send({ cancelled });
+    } catch (error) {
+      if (error instanceof SubmissionError) {
+        return reply.code(error.statusCode).send({ error: { code: error.code, message: error.message } });
+      }
+      throw error;
+    }
+  });
+
+  /** Replica verification: reference AdDNA vs the final per-beat script. */
+  app.get("/v1/generations/:id/recreate-report", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const job = await getJob(id, request.tenant!.id);
+    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
+    const params = JSON.parse(job.params) as { agent?: { report?: unknown } };
+    const report = params.agent?.report;
+    if (!report) {
+      return reply.code(404).send({ error: { code: "no_report", message: "This job carries no replica metadata." } });
+    }
+    return { report };
+  });
+
+  /** The editable script: AdDNA + per-beat texts for a beat-anchored job. */
+  app.get("/v1/generations/:id/script", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const job = await getJob(id, request.tenant!.id);
+    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
+    const params = JSON.parse(job.params) as GenerationParams;
+    const agent = params.agent as
+      | { dna?: AdDNA; beatTexts?: Array<{ index: number; text: string }>; language?: "zh" | "en"; source?: string }
+      | undefined;
+    if (!agent?.dna || !agent.beatTexts) {
+      return reply.code(404).send({ error: { code: "no_script", message: "This job has no editable beat script." } });
+    }
+    return { jobId: id, source: agent.source ?? "edit", language: agent.language ?? "en", dna: agent.dna, beatTexts: agent.beatTexts };
+  });
+
+  /**
+   * Edit-and-rerender: a human script adjustment (the semantic-take-adjust
+   * idea) — beats are the time authority, so edited texts re-fill the same
+   * AdDNA windows and the render timing reflows automatically. Creates a new
+   * job billed as a fresh render.
+   */
+  app.post("/v1/generations/:id/rerender", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = (request.body ?? {}) as { beatTexts?: Array<{ index?: number; text?: string }> };
+    try {
+      const job = await getJob(id, request.tenant!.id);
+      if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
+      const params = JSON.parse(job.params) as GenerationParams;
+      const agent = params.agent as
+        | { dna?: AdDNA; beatTexts?: Array<{ index: number; text: string }>; language?: "zh" | "en"; source?: string }
+        | undefined;
+      if (!agent?.dna || !agent.beatTexts) {
+        return reply.code(409).send({ error: { code: "no_script", message: "Only beat-anchored jobs can be script-edited." } });
+      }
+      const texts = Array.isArray(body.beatTexts) ? body.beatTexts : [];
+      if (texts.length !== agent.dna.beats.length || texts.some((t) => typeof t.text !== "string" || t.text.trim().length === 0)) {
+        return reply.code(400).send({ error: { code: "invalid_beats", message: `beatTexts must contain ${agent.dna.beats.length} non-empty texts.` } });
+      }
+      const beatTexts = texts.map((t, index) => ({ index, text: t.text!.trim() }));
+      const report = buildRecreateReport({
+        dna: agent.dna,
+        beatTexts,
+        language: agent.language ?? "en",
+        renderedDurationSec: agent.dna.durationSec,
+        aspectRatio: agent.dna.canvas.aspectRatio,
+        mode: "loose",
+      });
+      const newJob = await submitGeneration(request.tenant!.id, {
+        kind: "video",
+        model: job.model,
+        prompt: beatTexts.map((b) => b.text).join(agent.language === "zh" ? "" : " "),
+        params: {
+          aspectRatio: agent.dna.canvas.aspectRatio as AspectRatio,
+          resolution: `${agent.dna.canvas.resolution}p`,
+          durationSec: agent.dna.durationSec,
+          count: 1,
+          ...(params.references && params.references.length > 0 ? { references: params.references } : {}),
+          agent: {
+            source: "edit",
+            basedOn: id,
+            language: agent.language ?? "en",
+            dna: agent.dna,
+            beatTexts,
+            report,
+          },
+        },
+      });
+      return reply.code(201).send({ job: newJob, report });
+    } catch (error) {
+      if (error instanceof SubmissionError) {
+        return reply.code(error.statusCode).send({ error: { code: error.code, message: error.message } });
+      }
+      throw error;
+    }
   });
 
   app.post("/v1/generations", async (request, reply) => {

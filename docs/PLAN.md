@@ -70,6 +70,19 @@ GET  /v1/assets/file/:hash.:ext           工件读取
 GET  /v1/assets/placeholder               程序化占位图（开发期素材，SVG）
 GET  /v1/credits                          余额 + 流水
 GET/POST /v1/projects                     项目列表/新建
+POST /v1/auth/register|login              注册/JWT 登录（R5 补充契约）
+GET  /v1/auth/me · GET/POST /v1/auth/api-keys   会话与机器密钥（哈希存储）
+POST /v1/billing/checkout|mock/confirm|webhook  充值与回调
+GET  /v1/billing/payments                 支付流水
+POST /v1/agents/ad-reference|product-link  Agentic 管线（ad-reference 支持 mode=strict 复刻门；product-link 支持 platforms 批量）
+POST /v1/plan                             干跑估价（直接生成/模板/两种 agent 形态）
+GET/POST/DELETE /v1/credentials · GET/POST/DELETE /v1/endpoints  BYOK 渠道
+GET  /v1/render-templates                 渲染模板包目录（含自描述 UI 面板）
+GET  /v1/generations/:id/recreate-report  复刻验收报告（AdDNA 六硬门）
+DELETE /v1/generations/:id               取消作业（queued/running 均可，hold 一次性退回）
+GET  /v1/generations/:id/events          SSE 进度流（EventSource 可用 access_token 查询参数鉴权）
+GET  /v1/generations/:id/script          可编辑脚本（AdDNA + 逐拍台词）
+POST /v1/generations/:id/rerender        编辑重渲（拍为时间权威，改词自动 reflow，重新验收）
 ```
 
 ## 4. 前端信息架构（对照 Higgsfield 五张截图的复刻映射）
@@ -91,6 +104,7 @@ GET/POST /v1/projects                     项目列表/新建
 | **M2** | 前端 MVP：首页/生成记录全交互复刻 + 三大弹窗接线 | ✅ |
 | **M3** | 真实模型接入：`openai-images`（OpenAI 兼容渠道）+ **异步任务协议视频渠道适配器**（submit/poll/download，Seedance 类）+ `apps/mock-channel` 协议模拟器 | ✅ 已验证：经 mock 渠道全链路产出 h264 MP4；配 env 即接真实渠道 |
 | **M4** | **自研词锚定渲染引擎**：词级对齐器（synthetic + SRT，ASR 端口预留）→ 语义时间轴（场景/字幕 Cue/词锚点）→ 逐帧 SVG 合成（卡拉OK当前词高亮、场景调色、结束卡）→ resvg 栅格化 → FFmpeg libx264 编码 | ✅ 已验证：`studio-render-v1` 产出真实 MP4（h264/30fps/词级时间精确） |
+| **M5** | **商业化层**：JWT 认证（scrypt 口令哈希 + 自实现 HS256）+ API key（随机令牌，**sha256 哈希入库、明文仅签发时返回一次**）+ 每租户令牌桶限流 + 充值（checkout/幂等确认/HMAC Webhook **timing-safe 验签**）+ **积分预扣/退款模型**（提交时原子预扣，失败全额退款，杜绝并发负余额） | ✅ 已验证：预扣/退款/免费重渲 0 扣费单测；47 用例全绿 |
 | **M6** | **Agentic 管线**：`POST /v1/agents/ad-reference`（参考视频 → ffmpeg 静音检测提取节奏骨架[节拍数/时长] → 可选 ASR/手抄台词 → Composer 生成脚本[LLM 渠道或语法安全的规则改写，按参考节拍词数选模板变体] → M4 引擎渲染）；`POST /v1/agents/product-link`（商品页抓取 → OG/JSON-LD 提取标题/描述/价格/主图 → 主图自动入库为参考 → 脚本 → 渲染）；作业崩溃恢复（running→queued 重入队） | ✅ 已验证：参考片节奏 3 节拍/8s 精确克隆为 MP4（8.000s）；fixture 商品页全链路成片（10.000s）；og:image 自动入库；恢复机制实测 |
 | **P1** | **吸收 Hypit 的 Agent 一等公民机制（全部自研实现，未复制任何代码/文本）**：① `POST /v1/plan` 干跑估价（复用节奏分析与 Composer 真实预演，直接生成/模板/agent 三形态，plan 报价与实际扣费同源）；② 自动 QC（ffprobe 可读性/时长±0.6s/黑帧/最小体积）+ 失败自动重渲一次 + 人工 approve/reject 验收流 + reject 后免费重渲一次（幂等 409）；③ `skills/maker-studio/`（SKILL.md + 8 篇参考 + 问题→文档路由表，平文件双入口 `.claude/` `.codex/` + 同步脚本防漂移） | ✅ 已验证：plan 四形态、QC passed、approve/reject、免费重渲 0 扣费、409 幂等 |
 | **P2** | **Credential Store + 租户级 BYOK**：`credentials` 表（AES-256-GCM 密文，主密钥 `STUDIO_MASTER_KEY`，明文永不出 API）；`endpoints` 表（租户自有渠道，只存 `credentialRef` 引用）；模型解析从全局单例改为**按租户解析**（租户 BYOK 端点优先，名称与内置模型防碰撞）；BYOK 默认 0 积分计价；Web Integrations 弹窗（加渠道→模型选择器即时出现） | ✅ 已验证：租户隔离（beta 看不到 alpha 渠道）、BYOK 生成成功且 0 扣费、密文/引用不出 API、凭据落库加密存储 |

@@ -1,7 +1,7 @@
 import { db } from "./db/index.js";
 import { nowIso, uuid } from "./config.js";
 import { publishJobEvent } from "./bus.js";
-import { charge, canAfford, balance } from "./credits.js";
+import { holdCredits, refundOnce, canAfford, balance } from "./credits.js";
 import { getAsset, readArtifact, storeArtifact, type AssetRow } from "./storage.js";
 import { resolveModelAny } from "./tenant-models.js";
 import { qcVideoArtifact } from "./qc.js";
@@ -101,11 +101,22 @@ export async function submitGeneration(tenantId: string, request: CreateGenerati
 
   const id = uuid();
   const ts = nowIso();
+
+  // Authoritative budget gate: atomically hold the full run cost before the
+  // job exists. The evaluate() pre-check above is only for friendly errors —
+  // two racing submissions can no longer both spend the same credits.
+  const cost = evaluation.cost;
+  if (!cost) throw new SubmissionError(400, "invalid_model", "Model not available.");
+  const hold = request.freeResampleOf ? 0 : cost.total;
+  if (!(await holdCredits(tenantId, hold, id))) {
+    throw new SubmissionError(402, "insufficient_credits", `This run costs ${cost.total} credits.`);
+  }
+
   await db().run(
     "INSERT INTO jobs(id,tenant_id,kind,model,prompt,params,status,progress,cost_credits,template_id,free_resample_of,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
     [
       id, tenantId, request.kind, request.model, request.prompt.trim(), JSON.stringify(request.params),
-      "queued", 0, 0, request.templateId ?? null, request.freeResampleOf ?? null, ts, ts,
+      "queued", 0, hold, request.templateId ?? null, request.freeResampleOf ?? null, ts, ts,
     ],
   );
   await db().run("INSERT INTO audit(id,tenant_id,action,subject,meta,created_at) VALUES(?,?,?,?,?,?)", [
@@ -129,13 +140,30 @@ export function startWorker(): void {
   }, 350);
 }
 
+/**
+ * Claim the oldest queued job atomically (single UPDATE … RETURNING): safe
+ * for multiple worker instances sharing one database — two instances can
+ * never pick the same job. The cancelled-while-queued race is closed here,
+ * because cancellation and claiming are the same atomic status transition.
+ */
+export async function claimNextJob(): Promise<JobRow | null> {
+  const claimed = await db().all<JobRow>(
+    `UPDATE jobs SET status='running', progress=2, updated_at=?
+     WHERE id=(SELECT id FROM jobs WHERE status='queued' ORDER BY created_at LIMIT 1)
+       AND status='queued'
+     RETURNING *`,
+    [nowIso()],
+  );
+  return claimed[0] ?? null;
+}
+
 async function tick(): Promise<void> {
   if (ticking) return;
   ticking = true;
   try {
     const running = await db().get<{ n: number }>("SELECT CAST(COUNT(*) AS INTEGER) AS n FROM jobs WHERE status='running'");
     if ((running?.n ?? 0) >= GLOBAL_CONCURRENCY) return;
-    const next = await db().get<JobRow>("SELECT * FROM jobs WHERE status='queued' ORDER BY created_at LIMIT 1");
+    const next = await claimNextJob();
     if (next) await runJob(next);
   } catch (error) {
     console.error("worker tick failed", error);
@@ -150,8 +178,36 @@ async function setProgress(jobId: string, percent: number): Promise<void> {
   publishJobEvent(jobId, { type: "status", jobId, status: "running", progress: clamped });
 }
 
+class JobCancelledError extends Error {
+  constructor(readonly jobId: string) {
+    super("job cancelled");
+  }
+}
+
+/** Cancel a queued/running job: claims it, then releases its hold once-only. */
+export async function cancelJob(tenantId: string, jobId: string): Promise<boolean> {
+  const job = await getJob(jobId, tenantId);
+  if (!job) throw new SubmissionError(404, "not_found", "Job not found.");
+  if (job.status !== "queued" && job.status !== "running") return false;
+  const claimed = await db().run(
+    "UPDATE jobs SET status='cancelled', error='cancelled by tenant', updated_at=? WHERE id=? AND status IN ('queued','running')",
+    [nowIso(), jobId],
+  );
+  if (claimed.changes === 0) return false;
+  await refundOnce(tenantId, job.cost_credits, jobId, "refund:cancelled");
+  publishJobEvent(jobId, { type: "status", jobId, status: "cancelled", progress: 0 });
+  return true;
+}
+
 export async function runJob(job: JobRow): Promise<void> {
-  await db().run("UPDATE jobs SET status='running', progress=2, updated_at=? WHERE id=?", [nowIso(), job.id]);
+  // Mark running idempotently: the row arrives claimed from claimNextJob, but
+  // direct callers (tests, tools) may pass a queued row. A job cancelled
+  // between claim and here stays cancelled — the no-op protects that.
+  const claimed = await db().run(
+    "UPDATE jobs SET status='running', progress=2, updated_at=? WHERE id=? AND status IN ('queued','running')",
+    [nowIso(), job.id],
+  );
+  if (claimed.changes === 0) return;
   publishJobEvent(job.id, { type: "status", jobId: job.id, status: "running", progress: 2 });
 
   const model = await resolveModelAny(job.tenant_id, job.model, job.kind).then(
@@ -183,13 +239,17 @@ export async function runJob(job: JobRow): Promise<void> {
         reportProgress: (percent) => {
           void setProgress(job.id, percent);
         },
-        storeArtifact: async (buffer, mime) => {
+        throwIfCancelled: async () => {
+          const row = await db().get<{ status: string }>("SELECT status FROM jobs WHERE id=?", [job.id]);
+          if (!row || row.status !== "running") throw new JobCancelledError(job.id);
+        },
+        storeArtifact: async (buffer, mime, meta) => {
           const asset = await storeArtifact(job.tenant_id, buffer, mime, job.kind);
           const genId = uuid();
           const ts = nowIso();
           await db().run(
             "INSERT INTO generations(id,tenant_id,job_id,asset_id,kind,model,idx,favorite,meta,created_at) VALUES(?,?,?,?,?,?,?,0,?,?)",
-            [genId, job.tenant_id, job.id, asset.id, job.kind, job.model, index, "{}", ts],
+            [genId, job.tenant_id, job.id, asset.id, job.kind, job.model, index, JSON.stringify(meta ?? {}), ts],
           );
           index += 1;
           const row = await db().get<Parameters<typeof generationToDto>[0]>(
@@ -213,14 +273,31 @@ export async function runJob(job: JobRow): Promise<void> {
     }
     void attemptsUsed;
 
-    const cost = job.free_resample_of ? 0 : produced.length * model.creditsPerUnit;
-    if (cost > 0) await charge(job.tenant_id, -cost, `generation:${model.id}`, job.id);
-    await db().run("UPDATE jobs SET status='succeeded', progress=100, cost_credits=?, updated_at=? WHERE id=?", [
-      cost, nowIso(), job.id,
-    ]);
+    // Hold was taken at submission; consume per produced artifact, refund the rest.
+    const hold = job.free_resample_of ? 0 : job.cost_credits;
+    const consumed = job.free_resample_of ? 0 : produced.length * model.creditsPerUnit;
+    await refundOnce(job.tenant_id, Math.max(0, hold - consumed), job.id, "refund:unused");
+    // Conditional claim: a job cancelled while rendering never reports success.
+    const done = await db().run(
+      "UPDATE jobs SET status='succeeded', progress=100, cost_credits=?, updated_at=? WHERE id=? AND status='running'",
+      [consumed, nowIso(), job.id],
+    );
+    if (done.changes === 0) {
+      publishJobEvent(job.id, { type: "done", jobId: job.id, status: "cancelled" });
+      return;
+    }
     publishJobEvent(job.id, { type: "done", jobId: job.id, status: "succeeded" });
   } catch (error) {
+    if (error instanceof JobCancelledError) {
+      // cancelJob already refunded and set the terminal status.
+      publishJobEvent(job.id, { type: "done", jobId: job.id, status: "cancelled" });
+      return;
+    }
     const message = error instanceof Error ? error.message : String(error);
+    // Failed jobs release their full hold — "failure = full refund".
+    if (job.free_resample_of === null) {
+      await refundOnce(job.tenant_id, job.cost_credits, job.id, "refund:failed");
+    }
     await db().run("UPDATE jobs SET status='failed', error=?, updated_at=? WHERE id=?", [message, nowIso(), job.id]);
     publishJobEvent(job.id, { type: "done", jobId: job.id, status: "failed", error: message });
   }

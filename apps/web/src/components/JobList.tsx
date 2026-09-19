@@ -1,9 +1,18 @@
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { Icon, icons } from "./Icons";
+import { RecreateReportGates } from "./RecreateReport";
+import { EditScriptModal } from "./EditScriptModal";
 import type { GenerationDto, JobDto } from "@studio/shared";
 
-function GenerationCard({ generation }: { generation: GenerationDto }) {
+interface AgentMeta {
+  source?: string;
+  platform?: string;
+  renderer?: string;
+}
+
+function GenerationCard({ generation, job }: { generation: GenerationDto; job: JobDto }) {
   const queryClient = useQueryClient();
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["jobs"] });
@@ -26,12 +35,19 @@ function GenerationCard({ generation }: { generation: GenerationDto }) {
 
   const rejected = generation.reviewStatus === "rejected";
   const approved = generation.reviewStatus === "approved";
+  const agent = (job.params.agent ?? {}) as AgentMeta;
+  const [showReport, setShowReport] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const replica = agent.source === "product-link" || agent.source === "ad-reference" || agent.source === "edit";
+  // artifact URLs carry ?t= access tokens — strip before format checks
+  const isMp4 = generation.url.split("?")[0]!.endsWith(".mp4");
 
   return (
-    <div className={`group relative overflow-hidden rounded-xl border border-[#1e1e1e] ${rejected ? "opacity-50" : ""}`}>
+    <div className={`group overflow-hidden rounded-xl border border-[#1e1e1e] ${rejected ? "opacity-50" : ""}`}>
+      <div className="relative">
       {generation.kind === "video" ? (
-        generation.url.endsWith(".mp4") ? (
-          <video src={generation.url} controls loop className="w-full object-cover" />
+        isMp4 ? (
+          <video src={generation.url} controls loop className="aspect-[9/16] w-full bg-black object-cover" />
         ) : (
           <div className="relative">
             <img src={generation.url} alt="" className="w-full object-cover" />
@@ -97,9 +113,46 @@ function GenerationCard({ generation }: { generation: GenerationDto }) {
         </button>
       )}
 
-      <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-        {generation.model}
+      <span className="absolute bottom-2 left-2 flex gap-1">
+        <span className="rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+          {generation.model}
+        </span>
+        {agent.source === "product-link" && agent.platform && (
+          <span className="rounded-md bg-[#e80f7c]/85 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+            {agent.platform}
+          </span>
+        )}
+        {agent.source === "ad-reference" && (
+          <span className="rounded-md bg-[#7c3aed]/85 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+            Ad DNA
+          </span>
+        )}
+        {replica && (
+          <button
+            onClick={() => setShowEditor(true)}
+            className="rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-200 transition-colors hover:bg-black/80"
+          >
+            ✎ Edit
+          </button>
+        )}
+        {replica && (
+          <button
+            onClick={() => setShowReport((v) => !v)}
+            className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${
+              showReport ? "bg-[#ddf24b] text-black" : "bg-black/60 text-[#9adf2a] hover:bg-black/80"
+            }`}
+          >
+            {showReport ? "✕ Report" : "✦ Report"}
+          </button>
+        )}
       </span>
+      </div>
+      {replica && (
+        <div className="px-1 pb-1">
+          <RecreateReportGates jobId={job.id} open={showReport} />
+        </div>
+      )}
+      {showEditor && <EditScriptModal jobId={job.id} onClose={() => setShowEditor(false)} />}
     </div>
   );
 }
@@ -127,7 +180,7 @@ export function JobList({ jobs }: { jobs: JobDto[] }) {
   for (const job of jobs) {
     if (job.status === "succeeded") {
       for (const generation of job.generations) {
-        items.push({ key: generation.id, node: <GenerationCard generation={generation} /> });
+        items.push({ key: generation.id, node: <GenerationCard generation={generation} job={job} /> });
       }
     } else {
       items.push({ key: job.id, node: <JobProgressCard job={job} /> });

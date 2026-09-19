@@ -14,7 +14,8 @@ export async function createSqlite(dataDir: string): Promise<DbClient> {
       sqlite.exec(sql);
     },
     async run(sql: string, params: unknown[] = []) {
-      cacheGet(sqlite, cache, sql).run(...(params as SQLInputValue[]));
+      const result = cacheGet(sqlite, cache, sql).run(...(params as SQLInputValue[]));
+      return { changes: Number(result.changes) };
     },
     async get<T>(sql: string, params: unknown[] = []) {
       return cacheGet(sqlite, cache, sql).get(...(params as SQLInputValue[])) as T | undefined;

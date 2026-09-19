@@ -1,4 +1,5 @@
-import { allWords, type AlignedWord, type Alignment } from "./aligner.js";
+import { allWords, distributeWords, type AlignedWord, type Alignment } from "./aligner.js";
+import type { AdDNA, BeatRole } from "@studio/shared";
 
 /**
  * Semantic timeline: turns an aligned narration into a frame-exact render
@@ -21,6 +22,22 @@ export interface Scene {
   segment?: Alignment["segments"][number];
 }
 
+/**
+ * A beat-projected scene (R3): beat edges are the semantic time anchors —
+ * scene switches, transitions and template selection all resolve from them.
+ */
+export interface BeatPlan {
+  index: number;
+  role: BeatRole;
+  startSec: number;
+  endSec: number;
+  transition: "cut" | "fade" | "whip";
+  emphasis: "product" | "type" | "mixed";
+  template: string;
+  /** The beat's aligned narration (words are timed inside the beat window). */
+  segment?: Alignment["segments"][number];
+}
+
 export interface RenderPlan {
   fps: 30;
   width: number;
@@ -31,6 +48,8 @@ export interface RenderPlan {
   scenes: Scene[];
   cues: Cue[];
   words: AlignedWord[];
+  /** Present when the plan is beat-anchored (AdDNA path). */
+  beats?: BeatPlan[];
 }
 
 const CUE_WORDS = 4;
@@ -116,4 +135,98 @@ export function activeWordIndex(cue: Cue, timeSec: number): number {
     if (timeSec >= cue.words[i]!.startSec) index = i;
   }
   return index;
+}
+
+// ---------------------------------------------------------------------------
+// Beat-anchored plans (R3): the AdDNA is the time authority
+// ---------------------------------------------------------------------------
+
+/**
+ * Align each beat's rewritten text inside its own AdDNA window — word times
+ * are projections of the beat anchor, so a rewritten beat never drifts
+ * outside its slot regardless of word count.
+ */
+export function alignScriptToBeats(
+  beatTexts: string[],
+  beats: Array<{ startSec: number; endSec: number }>,
+): Alignment {
+  if (beatTexts.length !== beats.length) {
+    throw new Error(`beat texts (${beatTexts.length}) do not match dna beats (${beats.length})`);
+  }
+  const segments = beatTexts.map((text, i) => {
+    const start = beats[i]!.startSec;
+    const end = beats[i]!.endSec;
+    return {
+      text,
+      startSec: start,
+      endSec: end,
+      words: distributeWords(text, start, end),
+    };
+  });
+  const durationSec = segments.length > 0 ? segments[segments.length - 1]!.endSec : 0;
+  return { segments, durationSec, source: "synthetic" };
+}
+
+/** Project the AdDNA beats into a render plan; scenes ARE the beats. */
+export function buildBeatRenderPlan(
+  beatAlignment: Alignment,
+  dna: AdDNA,
+  opts: { aspectRatio: string; resolution: number; seed: number },
+): RenderPlan {
+  if (beatAlignment.segments.length !== dna.beats.length) {
+    throw new Error("beat alignment does not match the AdDNA beat count");
+  }
+  const ratio = opts.aspectRatio.split(":").map(Number);
+  const r = ratio.length === 2 && ratio[0]! > 0 ? ratio[0]! / ratio[1]! : 9 / 16;
+  const width = r >= 1 ? evenDim(opts.resolution) : evenDim(opts.resolution * r);
+  const height = r >= 1 ? evenDim(opts.resolution / r) : evenDim(opts.resolution);
+
+  const beats: BeatPlan[] = dna.beats.map((b, i) => ({
+    index: i,
+    role: b.role,
+    startSec: b.startSec,
+    endSec: b.endSec,
+    transition: b.visual.transition,
+    emphasis: b.visual.emphasis,
+    template: b.visual.template,
+    segment: beatAlignment.segments[i],
+  }));
+
+  // Legacy scene view mirrors the beats so frameScene stays correct for shared queries.
+  const scenes: Scene[] = beats.map((b) => ({
+    index: b.index,
+    kind: "segment" as const,
+    startSec: b.startSec,
+    endSec: b.endSec,
+    segment: b.segment,
+  }));
+
+  return {
+    fps: 30,
+    width,
+    height,
+    totalFrames: Math.max(2, Math.round(beatAlignment.durationSec * 30)),
+    durationSec: beatAlignment.durationSec,
+    seed: opts.seed,
+    scenes,
+    cues: buildCues(beatAlignment),
+    words: allWords(beatAlignment),
+    beats,
+  };
+}
+
+export function beatAt(plan: RenderPlan, timeSec: number): BeatPlan {
+  const beats = plan.beats ?? [];
+  return (
+    beats.find((b) => timeSec >= b.startSec && timeSec < b.endSec) ??
+    beats[beats.length - 1] ?? {
+      index: 0,
+      role: "hook",
+      startSec: 0,
+      endSec: plan.durationSec,
+      transition: "fade",
+      emphasis: "mixed",
+      template: "karaoke-uw",
+    }
+  );
 }

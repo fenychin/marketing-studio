@@ -12,6 +12,15 @@ export function hashPassword(password: string): string {
   return `scrypt:${salt.toString("hex")}:${hash.toString("hex")}`;
 }
 
+/**
+ * API keys are high-entropy random tokens — SHA-256 is the right lookup
+ * digest (fast, no salt needed); nothing low-entropy ever goes through here.
+ * Plaintext keys are shown once at issue time and never stored.
+ */
+export function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
 export function verifyPassword(password: string, stored: string): boolean {
   const [scheme, saltHex, hashHex] = stored.split(":");
   if (scheme !== "scrypt" || !saltHex || !hashHex) return false;
@@ -55,6 +64,15 @@ export function verifyJwt(token: string): JwtClaims | null {
 /** HMAC for payment webhook callbacks. */
 export function signPayload(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("hex");
+}
+
+/** Constant-time hex comparison for webhook signatures (both hex digests). */
+export function timingSafeEqHex(a: string, b: string): boolean {
+  if (typeof b !== "string" || a.length !== b.length) return false;
+  const ab = Buffer.from(a, "hex");
+  const bb = Buffer.from(b, "hex");
+  if (ab.length !== bb.length || ab.length === 0) return false;
+  return timingSafeEqual(ab, bb);
 }
 
 /**

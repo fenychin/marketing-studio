@@ -4,13 +4,16 @@
   "version": "0.1.0",
   "description": "Self-developed multi-tenant web marketing studio (independent implementation)",
   "type": "module",
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev:api": "tsx watch apps/api/src/index.ts",
     "dev:web": "pnpm --filter @studio/web dev",
     "dev:channel": "pnpm --filter @studio/mock-channel start",
     "build:web": "pnpm --filter @studio/web build",
-    "check": "pnpm -r exec tsc --noEmit"
+    "check": "pnpm -r exec tsc --noEmit",
+    "test": "pnpm -r --if-present test"
   },
   "devDependencies": {
     "tsx": "^4.19.2",
