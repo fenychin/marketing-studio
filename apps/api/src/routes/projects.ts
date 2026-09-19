@@ -15,7 +15,7 @@ export function registerProjectAndCreditRoutes(app: FastifyInstance): void {
   app.post("/v1/projects", async (request, reply) => {
     const body = (request.body ?? {}) as { name?: string };
     const name = (body.name ?? "").trim();
-    if (name.length === 0) return reply.code(400).send({ error: { code: "invalid_name", message: "name is required." } });
+    if (name.length === 0) return reply.code(400).send({ error: { code: "invalid_name", message: "请输入项目名称。" } });
     const id = uuid();
     await db().run("INSERT INTO projects(id,tenant_id,name,created_at) VALUES(?,?,?,?)", [id, request.tenant!.id, name, nowIso()]);
     await audit(request.tenant!.id, "project.create", id, { name });

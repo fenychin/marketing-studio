@@ -13,7 +13,7 @@ export function registerAgentRoutes(app: FastifyInstance): void {
       mode?: string;
     };
     if (!body.referenceAssetId) {
-      return reply.code(400).send({ error: { code: "missing_reference", message: "referenceAssetId is required." } });
+      return reply.code(400).send({ error: { code: "missing_reference", message: "请上传参考视频。" } });
     }
     const mode = body.mode === "strict" ? "strict" as const : "loose" as const;
     try {
@@ -42,7 +42,7 @@ export function registerAgentRoutes(app: FastifyInstance): void {
       variantsPerPlatform?: number;
     };
     if (!body.url || body.url.trim().length < 4) {
-      return reply.code(400).send({ error: { code: "invalid_url", message: "A product URL is required." } });
+      return reply.code(400).send({ error: { code: "invalid_url", message: "请输入商品链接。" } });
     }
     try {
       const jobs = await runProductLinkPipeline(request.tenant!.id, {

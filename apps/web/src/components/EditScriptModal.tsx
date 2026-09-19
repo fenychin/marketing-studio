@@ -44,13 +44,13 @@ export function EditScriptModal({ jobId, onClose }: { jobId: string; onClose: ()
   });
 
   return (
-    <Modal title="Edit Script" onClose={onClose} width="max-w-2xl">
-      <h2 className="display-font mb-2 text-[24px] uppercase leading-tight">Tune the script</h2>
+    <Modal title="编辑脚本" onClose={onClose} width="max-w-2xl">
+      <h2 className="display-font mb-2 text-[24px] uppercase leading-tight">微调台词</h2>
       <p className="mb-4 max-w-md text-[13px] leading-relaxed text-[#9a9a9a]">
-        Edit the lines beat by beat — the rhythm, cuts and captions reflow to the same beat windows automatically.
+        逐拍编辑台词——节奏、切镜与字幕会自动适配原有拍窗口。
       </p>
-      {script.isLoading && <div className="py-8 text-center text-[13px] text-[#6f6f6f]">Loading script…</div>}
-      {script.isError && <div className="py-8 text-center text-[13px] text-rose-400">No editable script on this job.</div>}
+      {script.isLoading && <div className="py-8 text-center text-[13px] text-[#6f6f6f]">加载脚本…</div>}
+      {script.isError && <div className="py-8 text-center text-[13px] text-rose-400">该作业没有可编辑脚本。</div>}
       {script.data && (
         <div className="mb-4 space-y-3">
           {beats.map((beat, i) => {
@@ -87,7 +87,7 @@ export function EditScriptModal({ jobId, onClose }: { jobId: string; onClose: ()
         onClick={() => rerender.mutate()}
         className="w-full rounded-xl bg-[#ddf24b] py-3 text-[13px] font-black uppercase tracking-wide text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {rerender.isPending ? "Queuing…" : "Re-render with edits"}
+        {rerender.isPending ? "入队中…" : "用修改后的台词重渲"}
       </button>
     </Modal>
   );

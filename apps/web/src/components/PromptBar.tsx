@@ -16,7 +16,7 @@ const IMAGE_RATIOS: AspectRatio[] = ["1:1", "3:4", "4:3", "9:16", "16:9"];
 const VIDEO_RATIOS: AspectRatio[] = ["9:16", "1:1", "16:9"];
 const RESOLUTIONS = ["540p", "720p", "1080p"];
 const DURATIONS = [5, 10, 15];
-const SHOTS = ["Closeup", "Wide", "Top-down", "Hero angle"];
+const SHOTS = [{ label: "特写", en: "Closeup" }, { label: "广角", en: "Wide" }, { label: "俯拍", en: "Top-down" }, { label: "主图角", en: "Hero angle" }];
 
 interface ReferenceChip {
   role: ReferenceRole;
@@ -103,7 +103,7 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
         json: {
           kind,
           model: model!.id,
-          prompt: kind === "video" ? `${prompt.trim() || "A short product ad"}. Shot: ${shot}.` : `${prompt.trim() || "A product shot"}. Shot: ${shot}.`,
+          prompt: kind === "video" ? `${prompt.trim() || "A short product ad"}. Shot: ${shot.en}.` : `${prompt.trim() || "A product shot"}. Shot: ${shot.en}.`,
           params: {
             aspectRatio: aspect,
             count,
@@ -197,7 +197,7 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={2}
-            placeholder={kind === "video" ? "Describe the video you want to create..." : "Describe what you want to create..."}
+            placeholder={kind === "video" ? "描述你想生成的视频..." : "描述你想生成的内容..."}
             className="w-full resize-none bg-transparent px-2 pt-1.5 text-[14px] text-neutral-200 placeholder:text-[#5f5f5f]"
           />
 
@@ -217,7 +217,7 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
           {plan && (
             <div className={`px-1 pb-1 text-[11px] ${plan.valid ? "text-[#7a8a3a]" : "text-amber-400"}`}>
               {plan.valid
-                ? `Plan ✓ ✦${plan.cost?.total} credits · balance ${plan.balance?.after} after render`
+                ? `Plan ✓ ✦${plan.cost?.total} 积分 · 渲染后余额 ${plan.balance?.after}`
                 : `Plan ⚠ ${plan.issues[0] ?? "unavailable"}`}
             </div>
           )}
@@ -231,7 +231,7 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
             <div className="relative">
               <button className="chip" onClick={() => setModelOpen((v) => !v)}>
                 <span className="text-[#b7f34d]">✦</span>
-                {model?.name ?? "Select model"}
+                {model?.name ?? "选择模型"}
                 <Icon path={icons.chevronRight} size={11} className="rotate-90" />
               </button>
               {modelOpen && (
@@ -256,12 +256,12 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
             {kind === "image" ? (
               <button className="chip" onClick={() => setShot((s) => cycle(SHOTS, s))}>
                 <Icon path={icons.box} size={12} />
-                {shot}
+                {shot.label}
               </button>
             ) : (
               <button className="chip" onClick={() => openUpload("reference")}>
                 <Icon path={icons.box} size={12} />
-                References
+                参考素材
               </button>
             )}
 
@@ -289,10 +289,10 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
             </button>
 
             <button className="chip uppercase" onClick={() => openUpload("avatar")}>
-              Avatar
+              头像
             </button>
             <button className="chip uppercase" onClick={() => openUpload("product")}>
-              Product
+              商品
             </button>
 
             <button
@@ -300,7 +300,7 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
               onClick={() => create.mutate()}
               className="ml-auto rounded-xl bg-[#ddf24b] px-4 py-2 text-[12px] font-black uppercase tracking-wide text-black transition hover:brightness-110 disabled:opacity-50"
             >
-              {create.isPending ? "Generating…" : "Generate"}
+              {create.isPending ? "生成中…" : "生成"}
               <span className="ml-1.5 font-bold">✦{cost}</span>
             </button>
           </div>

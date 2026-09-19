@@ -13,19 +13,19 @@ pnpm --filter @studio/api test   # 测试套件（CI 同款）
 ```
 
 演示租户密钥（请求头 `x-api-key`，多租户演示，生产替换）：`sk_demo_alpha`、`sk_demo_beta`。
-Web 登录：内置演示账号 `demo@studio.dev / demo12345`，或点 "Demo mode" 免登录。
+Web 登录：内置演示账号 `demo@studio.dev / demo12345`，或点 "演示模式" 免登录。
 
 ## 核心能力
 
-**1. 病毒广告复刻（Ad Reference → AdDNA）**：粘贴一条病毒式广告，解析器以"语音节拍 × 镜头切分"双信号融合出拍（beat）结构，转写走三级降级（粘贴文本 → 词级 ASR 端口 → 语速假设），逐拍标注角色（hook/context/value/proof/offer/cta）与词数窗口；逐拍脚本重写器（规则 6 角色保底 + LLM 约束 JSON，无 LLM 也保证节奏 100% 复刻）填充台词；渲染端以拍边界为时间权威出片。`mode=strict` 时六硬门不达标直接拒绝提交。
+**1. 病毒广告复刻（广告参考 → AdDNA）**：粘贴一条病毒式广告，解析器以"语音节拍 × 镜头切分"双信号融合出拍（beat）结构，转写走三级降级（粘贴文本 → 词级 ASR 端口 → 语速假设），逐拍标注角色（hook/context/value/proof/offer/cta）与词数窗口；逐拍脚本重写器（规则 6 角色保底 + LLM 约束 JSON，无 LLM 也保证节奏 100% 复刻）填充台词；渲染端以拍边界为时间权威出片。`mode=strict` 时六硬门不达标直接拒绝提交。
 
-**2. 一键商品广告（Product Link）**：提供商品链接，解析器抓取 OG + JSON-LD Product + 主图集（SSRF 逐跳防护），按 TikTok/Reels/Shorts 平台预设（节拍语法 × 时长窗）批量出片，`POST /v1/plan` 先整树报价。
+**2. 一键商品广告（商品链接）**：提供商品链接，解析器抓取 OG + JSON-LD Product + 主图集（SSRF 逐跳防护），按 TikTok/Reels/Shorts 平台预设（节拍语法 × 时长窗）批量出片，`POST /v1/plan` 先整树报价。
 
-**3. 复刻验收报告（recreate-report）**：六硬门自动对比参考片与成片——拍结构、每拍时长 ≤0.3s、每拍词数 ±20/25%、语速曲线 r≥0.8、hook/CTA 位置、画幅+时长。前端卡片上 "✦ Report" 直接查看。
+**3. 复刻验收报告（recreate-report）**：六硬门自动对比参考片与成片——拍结构、每拍时长 ≤0.3s、每拍词数 ±20/25%、语速曲线 r≥0.8、Hook/CTA 位置、画幅+时长。生成卡片上 "✦ 报告" 直接查看。
 
-**4. 编辑重渲闭环**：卡片 "✎ Edit" 逐拍改词——拍是时间权威，改词自动 reflow 时序，重渲作业重新过六硬门验收。
+**4. 编辑重渲闭环**：卡片 "✎ 编辑" 逐拍改词——拍是时间权威，改词自动 reflow 时序，重渲作业重新过六硬门验收。
 
-**5. 渲染模板包**：`karaoke-uw`（卡拉OK口播）/ `bigtype-hook`(大字报) 等，每包自带自描述 UI 面板（`GET /v1/render-templates`），参考图/og:image 经图像窄腰真实入片，产品主色驱动调色板。
+**5. 渲染模板包**：`karaoke-uw`（卡拉OK口播）/ `bigtype-hook`（大字报）等，每包自带自描述 UI 面板（`GET /v1/render-templates`），参考图/og:image 经图像窄腰真实入片，产品主色驱动调色板。
 
 ## 模型与渠道
 
@@ -72,8 +72,13 @@ packages/shared      前后端共享 API 契约类型（含 AdDNA/RecreateReport
 deploy/              Dockerfile ×2、docker-compose、K8s 清单
 docs/                PLAN.md（方案/里程碑）· DESIGN-AD-DNA.md（复刻能力技术方案）
 skills/maker-studio/ Agent Skill（SKILL.md + 参考文档 + 路由表）
-test/                vitest 套件（52+ 用例：解析/重写/渲染/取消/计费/复刻报告）
+services/asr-sidecar 词级语音识别 sidecar（faster-whisper，见 scripts/start-asr.sh）
+test/                vitest 套件（53 用例：解析/重写/渲染/取消/计费/复刻报告/编辑）
 ```
+
+## 多实例部署
+
+作业队列采用**单语句原子认领**（UPDATE ... WHERE id=(SELECT ... LIMIT 1) RETURNING），多个 worker 实例共享同一数据库时不会双捡同一作业；崩溃恢复、取消与积分预扣/退款均与实例数无关。当前为单实例边界的部分：限流令牌桶与 SSE 事件总线在进程内，多副本部署时建议 Redis 限流 + Redis pub/sub 转发事件，或按租户做网关粘性路由（见 deploy/k8s）。
 
 ## 环境变量
 
@@ -85,10 +90,6 @@ test/                vitest 套件（52+ 用例：解析/重写/渲染/取消/�
 - `STUDIO_DB_DRIVER=sqlite|postgres` · `STUDIO_STORAGE_DRIVER=fs|s3`
 - `STUDIO_JWT_SECRET / STUDIO_MASTER_KEY / STUDIO_PAYMENT_WEBHOOK_SECRET`：生产必填
 - `STUDIO_ALLOW_PRIVATE_FETCH=1`：仅 dev/test——允许抓取内网 fixture 页面
-
-## 多实例部署
-
-作业队列采用**单语句原子认领**(UPDATE ... WHERE id=(SELECT ... LIMIT 1) RETURNING),多个 worker 实例共享同一数据库时不会双捡同一作业;崩溃恢复、取消与积分预扣/退款均与实例数无关。当前为单实例边界的部分:限流令牌桶与 SSE 事件总线在进程内,多副本部署时建议 Redis 限流 + Redis pub/sub 转发事件,或按租户做网关粘性路由(见 deploy/k8s)。
 
 ## Agent Skill
 

@@ -4,13 +4,13 @@ import { api } from "../lib/api";
 import type { Kind, TemplateCategory, TemplateDto } from "@studio/shared";
 
 const CATEGORIES: Array<{ id: TemplateCategory | "all"; label: string; icon: string }> = [
-  { id: "all", label: "All", icon: "▦" },
-  { id: "product-shot", label: "Product shot", icon: "◎" },
-  { id: "motion", label: "Motion", icon: "⟳" },
+  { id: "all", label: "全部", icon: "▦" },
+  { id: "product-shot", label: "商品摄影", icon: "◎" },
+  { id: "motion", label: "动效", icon: "⟳" },
   { id: "ugc", label: "UGC", icon: "☺" },
-  { id: "ads", label: "Ads", icon: "▭" },
-  { id: "posters", label: "Posters", icon: "▤" },
-  { id: "marketplace", label: "Marketplace", icon: "▧" },
+  { id: "ads", label: "广告", icon: "▭" },
+  { id: "posters", label: "海报", icon: "▤" },
+  { id: "marketplace", label: "电商", icon: "▧" },
 ];
 
 export function TemplateGrid({ onRecreate }: { onRecreate: (t: TemplateDto) => void }) {
@@ -27,7 +27,7 @@ export function TemplateGrid({ onRecreate }: { onRecreate: (t: TemplateDto) => v
 
   return (
     <section className="mx-auto w-full max-w-[1500px] px-6 pb-14">
-      <h2 className="display-font mb-4 text-[20px] uppercase">Explore Templates</h2>
+      <h2 className="display-font mb-4 text-[20px] uppercase">探索模板</h2>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {CATEGORIES.map((c) => (
@@ -53,7 +53,7 @@ export function TemplateGrid({ onRecreate }: { onRecreate: (t: TemplateDto) => v
                 kind === k ? "bg-[#262626] text-white" : "text-[#9a9a9a]"
               }`}
             >
-              {k === "all" ? "All" : `${k}s`}
+              {k === "all" ? "全部" : k === "image" ? "图片" : "视频"}
             </button>
           ))}
         </div>
@@ -68,7 +68,7 @@ export function TemplateGrid({ onRecreate }: { onRecreate: (t: TemplateDto) => v
                 onClick={() => onRecreate(t)}
                 className="rounded-lg bg-[#ddf24b] px-4 py-1.5 text-[11px] font-black uppercase tracking-wide text-black"
               >
-                Recreate ✦{t.credits}
+                复刻 ✦{t.credits}
               </button>
             </div>
             <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
@@ -78,7 +78,7 @@ export function TemplateGrid({ onRecreate }: { onRecreate: (t: TemplateDto) => v
         ))}
       </div>
       {templates.data?.templates.length === 0 && (
-        <div className="py-16 text-center text-[13px] text-[#6f6f6f]">No templates in this filter.</div>
+        <div className="py-16 text-center text-[13px] text-[#6f6f6f]">该筛选下暂无模板。</div>
       )}
     </section>
   );

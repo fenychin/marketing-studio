@@ -35,7 +35,7 @@ export function TopUpModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <Modal title="Top up credits" onClose={onClose} width="max-w-md">
+    <Modal title="充值积分" onClose={onClose} width="max-w-md">
       <div className="space-y-2.5">
         {PACKS.map((p) => (
           <button
@@ -47,7 +47,7 @@ export function TopUpModal({ onClose }: { onClose: () => void }) {
           >
             <span className="flex items-center gap-2">
               <span className="text-[15px] font-black">✦ {p.credits.toLocaleString()}</span>
-              <span className="text-[11px] uppercase tracking-wide text-[#6f6f6f]">credits</span>
+              <span className="text-[11px] uppercase tracking-wide text-[#6f6f6f]">积分</span>
             </span>
             <span className="text-[13px] font-bold text-neutral-200">{p.price}</span>
           </button>
@@ -59,9 +59,9 @@ export function TopUpModal({ onClose }: { onClose: () => void }) {
         onClick={() => purchase.mutate(selected)}
         className="mt-4 w-full rounded-xl bg-gradient-to-r from-[#e80f7c] to-[#f0559a] py-3 text-[13px] font-black uppercase tracking-[0.12em] text-white transition hover:brightness-110 disabled:opacity-50"
       >
-        {purchase.isPending ? "Processing…" : `Purchase ✦ ${selected.toLocaleString()}`}
+        {purchase.isPending ? "处理中…" : `购买 ✦ ${selected.toLocaleString()}`}
       </button>
-      <div className="mt-2 text-center text-[10px] text-[#5f5f5f]">Sandbox checkout — wire a real provider via the billing adapter.</div>
+      <div className="mt-2 text-center text-[10px] text-[#5f5f5f]">沙箱支付——可通过计费适配器接入真实渠道。</div>
     </Modal>
   );
 }

@@ -87,11 +87,11 @@ async function assertPublicHost(url: URL): Promise<void> {
   try {
     addrs = await lookup(url.hostname, { all: true });
   } catch {
-    throw new SubmissionError(422, "invalid_url", "That host could not be resolved.");
+    throw new SubmissionError(422, "invalid_url", "无法解析该主机。");
   }
   for (const addr of addrs) {
     if (isPrivateAddress(addr.address)) {
-      throw new SubmissionError(422, "blocked_host", "That host is not reachable from the studio.");
+      throw new SubmissionError(422, "blocked_host", "工作室无法访问该主机。");
     }
   }
 }
@@ -115,7 +115,7 @@ export async function guardedFetch(rawUrl: string): Promise<Response> {
     }
     return response;
   }
-  throw new SubmissionError(422, "too_many_redirects", "That page redirects too many times.");
+  throw new SubmissionError(422, "too_many_redirects", "该页面重定向次数过多。");
 }
 
 // --- JSON-LD Product --------------------------------------------------------
@@ -167,7 +167,7 @@ function collectJsonLdProducts(html: string): JsonLdNode[] {
 export async function fetchProductPage(rawUrl: string): Promise<ProductPage> {
   const url = new URL(rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`);
   const response = await guardedFetch(url.toString());
-  if (!response.ok) throw new SubmissionError(422, "scrape_failed", `The page returned HTTP ${response.status}.`);
+  if (!response.ok) throw new SubmissionError(422, "scrape_failed", `页面返回 HTTP ${response.status}。`);
   // cap the parse window — page weight beyond 2MB is boilerplate
   const reader = response.body!.getReader();
   const chunks: Uint8Array[] = [];

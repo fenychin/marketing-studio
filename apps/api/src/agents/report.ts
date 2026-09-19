@@ -76,39 +76,39 @@ export function buildRecreateReport(input: ReportInput): RecreateReport {
   const gates: RecreateGate[] = [
     {
       key: "beat_count",
-      label: "Beat structure",
+      label: "拍结构",
       pass: beatCountGate,
-      detail: `${beatTexts.length} scripted vs ${beats.length} reference beats`,
+      detail: `脚本 ${beatTexts.length} 拍 vs 参考 ${beats.length} 拍`,
     },
     {
       key: "beat_duration",
-      label: "Per-beat duration ≤0.3s",
+      label: "每拍时长 ≤0.3s",
       pass: beatCountGate, // beat windows are projected from the AdDNA by construction
-      detail: "script beats are aligned inside the reference windows",
+      detail: "脚本各拍对齐在参考窗口内",
     },
     {
       key: "word_window",
-      label: "Per-beat word count ±20/25%",
+      label: "每拍词数 ±20/25%",
       pass: windowGate,
-      detail: `${inWindow}/${beats.length} beats inside their windows`,
+      detail: `${inWindow}/${beats.length} 拍在词数窗口内`,
     },
     {
       key: "energy_curve",
-      label: "Speech-rate curve r ≥ 0.8",
+      label: "语速曲线 r ≥ 0.8",
       pass: energyGate,
       detail: correlation === null ? "fewer than 2 beats — skipped" : `r = ${correlation}`,
     },
     {
       key: "structure_positions",
-      label: "Hook/CTA positions",
+      label: "Hook/CTA 位置",
       pass: Boolean(firstRoleOk && lastRoleOk),
-      detail: `first ${beats[0]?.role ?? "—"}, last ${beats[beats.length - 1]?.role ?? "—"}`,
+      detail: `首拍 ${beats[0]?.role ?? "—"}，末拍 ${beats[beats.length - 1]?.role ?? "—"}`,
     },
     {
       key: "canvas_duration",
-      label: "Canvas + duration ±0.6s",
+      label: "画幅 + 时长 ±0.6s",
       pass: aspectRatio === dna.canvas.aspectRatio && durationDelta <= 0.6,
-      detail: `${dna.canvas.aspectRatio} @ ${round3(dna.durationSec)}s (Δ ${round3(durationDelta)}s)`,
+      detail: `${dna.canvas.aspectRatio} @ ${round3(dna.durationSec)}s（偏差 ${round3(durationDelta)}s）`,
     },
   ];
 

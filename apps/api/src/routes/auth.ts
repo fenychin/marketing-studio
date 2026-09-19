@@ -18,14 +18,14 @@ export function registerAuthRoutes(app: FastifyInstance): void {
     const password = body.password ?? "";
     const orgName = (body.orgName ?? "").trim() || `${email.split("@")[0]}'s workspace`;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return reply.code(400).send({ error: { code: "invalid_email", message: "Valid email required." } });
+      return reply.code(400).send({ error: { code: "invalid_email", message: "请输入有效的邮箱地址。" } });
     }
     if (password.length < 8) {
-      return reply.code(400).send({ error: { code: "weak_password", message: "Password must be at least 8 characters." } });
+      return reply.code(400).send({ error: { code: "weak_password", message: "密码至少需要 8 个字符。" } });
     }
     const existing = await db().get("SELECT id FROM users WHERE email=?", [email]);
     if (existing) {
-      return reply.code(409).send({ error: { code: "email_taken", message: "This email is already registered." } });
+      return reply.code(409).send({ error: { code: "email_taken", message: "该邮箱已注册。" } });
     }
 
     const tenantId = uuid();
@@ -55,7 +55,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       [email],
     );
     if (!row || !verifyPassword(body.password ?? "", row.password_hash)) {
-      return reply.code(401).send({ error: { code: "invalid_credentials", message: "Email or password is incorrect." } });
+      return reply.code(401).send({ error: { code: "invalid_credentials", message: "邮箱或密码不正确。" } });
     }
     const claims: Omit<JwtClaims, "exp"> = { sub: row.id, tid: row.tenant_id, email: row.email, org: row.org };
     return { token: signJwt(claims), user: { id: row.id, email: row.email, org: row.org } };

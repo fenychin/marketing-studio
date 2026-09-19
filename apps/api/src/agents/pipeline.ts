@@ -42,7 +42,7 @@ export async function composeAdReference(
   request: { referenceAssetId: string; transcript?: string; tone?: string; mode?: "strict" | "loose" },
 ): Promise<AdReferenceComposition> {
   const asset = await getAsset(tenantId, request.referenceAssetId);
-  if (!asset) throw new SubmissionError(404, "not_found", "Reference asset not found.");
+  if (!asset) throw new SubmissionError(404, "not_found", "参考素材不存在。");
   const videoBuffer = await readArtifact(asset);
 
   // AdDNA: beat fusion + transcript tiers (pasted > ASR > rate assumption)
@@ -177,7 +177,7 @@ export async function composeProductLink(
   request: { url: string; tone?: string; platforms?: string[]; variantsPerPlatform?: number },
 ): Promise<ProductLinkComposition> {
   const page = await fetchProductPage(request.url);
-  if (!page.title) throw new SubmissionError(422, "scrape_failed", "Could not read a product title from that page.");
+  if (!page.title) throw new SubmissionError(422, "scrape_failed", "无法从该页面读取商品标题。");
 
   const product: ProductInfo = { name: page.title, description: page.description, price: page.price, url: page.url };
 
@@ -273,7 +273,7 @@ export async function runProductLinkPipeline(
       );
     }
   }
-  if (jobs.length === 0) throw new SubmissionError(422, "no_platforms", "No valid platform presets were requested.");
+  if (jobs.length === 0) throw new SubmissionError(422, "no_platforms", "没有有效的平台预设。");
   return jobs;
 }
 

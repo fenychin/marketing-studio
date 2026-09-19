@@ -18,19 +18,19 @@ export function RecreateReportGates({ jobId, open }: { jobId: string; open: bool
   if (!open) return null;
   return (
     <div className="rounded-lg border border-[#242424] bg-[#0d0d0d] p-2 text-left">
-      {query.isLoading && <div className="text-[11px] text-[#6f6f6f]">Loading…</div>}
+      {query.isLoading && <div className="text-[11px] text-[#6f6f6f]">加载中…</div>}
       {query.isError && (
         <div className="text-[11px] text-[#7a7a7a]">
           {query.error instanceof ApiError && query.error.status === 404
-            ? "No replica metadata on this job."
-            : "Report unavailable."}
+            ? "该作业没有复刻验收数据。"
+            : "报告不可用。"}
         </div>
       )}
       {query.data && (
         <>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-300">
-              Replication gates
+              复刻验收门
             </span>
             <span
               className={`text-[10px] font-bold ${query.data.report.score === 1 ? "text-[#c7e34c]" : "text-amber-300"}`}

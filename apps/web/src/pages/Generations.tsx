@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, getApiKey, getToken } from "../lib/api";
 import { JobList } from "../components/JobList";
-import type { JobDto, GenerationDto, Kind } from "@studio/shared";
+import type { JobDto, GenerationDto, JobStatus, Kind } from "@studio/shared";
+
+const STATUS_LABELS: Record<JobStatus, string> = {
+  queued: "排队中",
+  running: "渲染中",
+  succeeded: "已完成",
+  failed: "失败",
+  cancelled: "已取消",
+};
 
 /**
  * Live job streams: one EventSource per in-progress job (token goes in the
@@ -60,7 +68,7 @@ export function Generations({ mode }: { mode: "all" | "favorites" }) {
   return (
     <div className="mx-auto w-full max-w-[1400px] px-6 py-6">
       <div className="mb-5 flex items-center gap-3">
-        <h1 className="display-font text-[22px] uppercase">{mode === "favorites" ? "My Favorites" : "My Generations"}</h1>
+        <h1 className="display-font text-[22px] uppercase">{mode === "favorites" ? "我的收藏" : "我的生成"}</h1>
         {mode === "all" && (
           <div className="ml-auto flex items-center gap-1 rounded-full border border-[#2a2a2a] bg-[#141414] p-1">
             {(["all", "image", "video"] as const).map((k) => (
@@ -69,7 +77,7 @@ export function Generations({ mode }: { mode: "all" | "favorites" }) {
                 onClick={() => setFilter(k)}
                 className={`rounded-full px-3 py-1 text-[12px] font-semibold capitalize ${filter === k ? "bg-[#262626] text-white" : "text-[#9a9a9a]"}`}
               >
-                {k === "all" ? "All" : `${k}s`}
+                {k === "all" ? "全部" : k === "image" ? "图片" : "视频"}
               </button>
             ))}
           </div>
@@ -86,13 +94,13 @@ export function Generations({ mode }: { mode: "all" | "favorites" }) {
             ))}
           </div>
         ) : (
-          <div className="py-20 text-center text-[13px] text-[#6f6f6f]">Nothing favorited yet — tap the heart on any generation.</div>
+          <div className="py-20 text-center text-[13px] text-[#6f6f6f]">还没有收藏——在生成卡片上点心形图标。</div>
         )
       ) : (
         <>
           {active.length > 0 && (
             <>
-              <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#6f6f6f]">In progress</div>
+              <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#6f6f6f]">进行中</div>
               <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
                 {active.map((job) => (
                   <div key={job.id} className="overflow-hidden rounded-xl border border-[#242424] bg-[#121212]">
@@ -102,14 +110,14 @@ export function Generations({ mode }: { mode: "all" | "favorites" }) {
                           <div className="h-full rounded-full bg-[#ddf24b] transition-all" style={{ width: `${job.progress}%` }} />
                         </div>
                         <div className="text-[11px] font-semibold uppercase tracking-wider text-[#8a8a8a]">
-                          {job.status} {job.progress}%
+                          {STATUS_LABELS[job.status] ?? job.status} {job.progress}%
                         </div>
                         <button
                           onClick={() => cancel.mutate(job.id)}
                           disabled={cancel.isPending}
                           className="mt-2 rounded-lg border border-[#3a3a3a] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#9a9a9a] transition-colors hover:border-rose-400 hover:text-rose-300 disabled:opacity-50"
                         >
-                          {cancel.isPending ? "Cancelling…" : "Cancel"}
+                          {cancel.isPending ? "取消中…" : "取消"}
                         </button>
                       </div>
                     </div>
@@ -121,7 +129,7 @@ export function Generations({ mode }: { mode: "all" | "favorites" }) {
           {done.length > 0 ? (
             <JobList jobs={done} />
           ) : (
-            active.length === 0 && <div className="py-20 text-center text-[13px] text-[#6f6f6f]">Nothing here yet — generate from Home.</div>
+            active.length === 0 && <div className="py-20 text-center text-[13px] text-[#6f6f6f]">这里还什么都没有——去首页生成。</div>
           )}
         </>
       )}

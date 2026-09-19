@@ -72,7 +72,7 @@ export async function evaluateGeneration(tenantId: string, request: CreateGenera
     issues.push({ statusCode: 400, code: "invalid_count", message: `count must be 1..${model.maxCount}.` });
   }
   if (typeof request.prompt !== "string" || request.prompt.trim().length === 0) {
-    issues.push({ statusCode: 400, code: "empty_prompt", message: "prompt is required." });
+    issues.push({ statusCode: 400, code: "empty_prompt", message: "请填写创作描述。" });
   }
 
   const active = await db().get<{ n: number }>(
@@ -80,12 +80,12 @@ export async function evaluateGeneration(tenantId: string, request: CreateGenera
     [tenantId],
   );
   if ((active?.n ?? 0) >= TENANT_ACTIVE_LIMIT) {
-    issues.push({ statusCode: 429, code: "tenant_busy", message: `Tenant already has ${TENANT_ACTIVE_LIMIT} active jobs.` });
+    issues.push({ statusCode: 429, code: "tenant_busy", message: `该租户已有 ${TENANT_ACTIVE_LIMIT} 个进行中的作业。` });
   }
 
   const cost = { creditsPerUnit: model.creditsPerUnit, count, total: model.creditsPerUnit * count };
   if (!request.freeResampleOf && !(await canAfford(tenantId, cost.total))) {
-    issues.push({ statusCode: 402, code: "insufficient_credits", message: `This run costs ${cost.total} credits.` });
+    issues.push({ statusCode: 402, code: "insufficient_credits", message: `本次需要 ${cost.total} 积分。` });
   }
 
   return { issues, modelId: model.id, cost, balanceBefore: await balance(tenantId) };
@@ -109,7 +109,7 @@ export async function submitGeneration(tenantId: string, request: CreateGenerati
   if (!cost) throw new SubmissionError(400, "invalid_model", "Model not available.");
   const hold = request.freeResampleOf ? 0 : cost.total;
   if (!(await holdCredits(tenantId, hold, id))) {
-    throw new SubmissionError(402, "insufficient_credits", `This run costs ${cost.total} credits.`);
+    throw new SubmissionError(402, "insufficient_credits", `本次需要 ${cost.total} 积分。`);
   }
 
   await db().run(
@@ -187,10 +187,10 @@ class JobCancelledError extends Error {
 /** Cancel a queued/running job: claims it, then releases its hold once-only. */
 export async function cancelJob(tenantId: string, jobId: string): Promise<boolean> {
   const job = await getJob(jobId, tenantId);
-  if (!job) throw new SubmissionError(404, "not_found", "Job not found.");
+  if (!job) throw new SubmissionError(404, "not_found", "作业不存在。");
   if (job.status !== "queued" && job.status !== "running") return false;
   const claimed = await db().run(
-    "UPDATE jobs SET status='cancelled', error='cancelled by tenant', updated_at=? WHERE id=? AND status IN ('queued','running')",
+    "UPDATE jobs SET status='cancelled', error='已由用户取消', updated_at=? WHERE id=? AND status IN ('queued','running')",
     [nowIso(), jobId],
   );
   if (claimed.changes === 0) return false;
@@ -216,7 +216,7 @@ export async function runJob(job: JobRow): Promise<void> {
   const params = JSON.parse(job.params) as GenerationParams;
 
   try {
-    if (!model) throw new Error(`model ${job.model} is not registered on this node`);
+    if (!model) throw new Error(`模型 ${job.model} 未在本节点注册`);
 
     const references: ReferencePayload[] = [];
     for (const ref of params.references ?? []) {

@@ -41,14 +41,14 @@ export function Login() {
           <span className="grid h-7 w-7 place-items-center rounded-md bg-gradient-to-br from-emerald-400 to-lime-500 text-[14px]">✦</span>
           <span className="text-[15px] font-bold">Maker Studio</span>
         </div>
-        <h1 className="display-font mb-4 text-[20px] uppercase">{mode === "login" ? "Sign in" : "Create workspace"}</h1>
+        <h1 className="display-font mb-4 text-[20px] uppercase">{mode === "login" ? "登录" : "创建工作区"}</h1>
 
         <div className="space-y-3">
           {mode === "register" && (
             <input
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
-              placeholder="Workspace name"
+              placeholder="工作区名称"
               className="w-full rounded-xl border border-[#2e2e2e] bg-[#0e0e0e] px-3.5 py-2.5 text-[13px] text-neutral-200 placeholder:text-[#5f5f5f]"
             />
           )}
@@ -62,7 +62,7 @@ export function Login() {
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={mode === "register" ? "Password (8+ characters)" : "Password"}
+            placeholder={mode === "register" ? "密码（至少 8 位）" : "密码"}
             type="password"
             onKeyDown={(e) => e.key === "Enter" && submit()}
             className="w-full rounded-xl border border-[#2e2e2e] bg-[#0e0e0e] px-3.5 py-2.5 text-[13px] text-neutral-200 placeholder:text-[#5f5f5f]"
@@ -73,7 +73,7 @@ export function Login() {
             onClick={submit}
             className="w-full rounded-xl bg-[#ddf24b] py-2.5 text-[13px] font-black uppercase tracking-wide text-black transition hover:brightness-110 disabled:opacity-50"
           >
-            {busy ? "…" : mode === "login" ? "Sign in" : "Register"}
+            {busy ? "…" : mode === "login" ? "登录" : "注册"}
           </button>
         </div>
 
@@ -82,7 +82,7 @@ export function Login() {
             className="hover:text-neutral-200"
             onClick={() => setMode(mode === "login" ? "register" : "login")}
           >
-            {mode === "login" ? "Create an account →" : "← Have an account"}
+            {mode === "login" ? "创建账号 →" : "← 已有账号"}
           </button>
           <button
             className="rounded-full border border-[#2e2e2e] px-2.5 py-1 hover:border-neutral-500"
@@ -91,12 +91,12 @@ export function Login() {
               navigate("/");
             }}
           >
-            Demo mode
+            演示模式
           </button>
         </div>
         {mode === "login" && (
           <div className="mt-3 rounded-lg border border-[#242424] bg-[#0d0d0d] p-2.5 text-[11px] leading-relaxed text-[#6f6f6f]">
-            Seeded demo account: <span className="text-neutral-300">demo@studio.dev</span> / <span className="text-neutral-300">demo12345</span>
+            内置演示账号： <span className="text-neutral-300">demo@studio.dev</span> / <span className="text-neutral-300">demo12345</span>
           </div>
         )}
       </div>

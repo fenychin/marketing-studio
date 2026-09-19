@@ -24,7 +24,7 @@ export function registerPlanRoutes(app: FastifyInstance): void {
       // Both pipelines submit to studio-render-v1; plan must quote the same model.
       if (agent?.type === "ad-reference") {
         if (!agent.referenceAssetId) {
-          return planResponse(false, ["missing_reference: referenceAssetId is required."], null, null, balanceBefore, {
+          return planResponse(false, ["missing_reference: 请上传参考视频。"], null, null, balanceBefore, {
             agent: "ad-reference",
           });
         }
@@ -36,7 +36,7 @@ export function registerPlanRoutes(app: FastifyInstance): void {
         });
         const model = resolveModel("studio-render-v1", "video") ?? defaultModel("video");
         const cost = { creditsPerUnit: model.creditsPerUnit, count: 1, total: model.creditsPerUnit };
-        return planResponse(balanceBefore >= cost.total, balanceBefore < cost.total ? [`insufficient_credits: needs ${cost.total} credits`] : [], cost, model.id, balanceBefore, {
+        return planResponse(balanceBefore >= cost.total, balanceBefore < cost.total ? [`insufficient_credits: 本次需要 ${cost.total} 积分`] : [], cost, model.id, balanceBefore, {
           agent: "ad-reference",
           script: composed.script,
           durationSec: composed.durationSec,
@@ -50,7 +50,7 @@ export function registerPlanRoutes(app: FastifyInstance): void {
 
       if (agent?.type === "product-link") {
         if (!agent.url) {
-          return planResponse(false, ["invalid_url: url is required."], null, null, balanceBefore, { agent: "product-link" });
+          return planResponse(false, ["invalid_url: 请输入商品链接。"], null, null, balanceBefore, { agent: "product-link" });
         }
         const composed = await composeProductLink(tenantId, {
           url: agent.url,
@@ -60,7 +60,7 @@ export function registerPlanRoutes(app: FastifyInstance): void {
         const model = resolveModel("studio-render-v1", "video") ?? defaultModel("video");
         const jobCount = composed.platforms.length;
         const cost = { creditsPerUnit: model.creditsPerUnit, count: jobCount, total: model.creditsPerUnit * jobCount };
-        return planResponse(balanceBefore >= cost.total, balanceBefore < cost.total ? [`insufficient_credits: needs ${cost.total} credits`] : [], cost, model.id, balanceBefore, {
+        return planResponse(balanceBefore >= cost.total, balanceBefore < cost.total ? [`insufficient_credits: 本次需要 ${cost.total} 积分`] : [], cost, model.id, balanceBefore, {
           agent: "product-link",
           script: composed.platforms[0]?.script ?? "",
           composer: composed.composer,
@@ -83,7 +83,7 @@ export function registerPlanRoutes(app: FastifyInstance): void {
           [templateId],
         );
         if (!template) {
-          return planResponse(false, ["not_found: template not found."], null, null, balanceBefore, null);
+          return planResponse(false, ["not_found: 模板不存在。"], null, null, balanceBefore, null);
         }
         const count = Math.min(Math.max(Number(body.count ?? 4), 1), 4);
         const request: CreateGenerationRequest = {

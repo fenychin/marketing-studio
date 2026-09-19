@@ -64,20 +64,20 @@ CREATE TABLE IF NOT EXISTS endpoints(
 `;
 
 const TEMPLATES: Array<[string, string, string, "image" | "video", number, string, string, number]> = [
-  ["studio-hero", "Studio Hero", "product-shot", "image", 4, "3:4", "Studio hero shot of {PRODUCT}, soft warm key light, cream seamless backdrop, shallow depth of field {EDIT}", 101],
-  ["closeup-glow", "Closeup Glow", "product-shot", "image", 4, "3:4", "Extreme closeup of {PRODUCT} held toward camera, dewy skin glow, beauty lighting {EDIT}", 202],
-  ["minimal-pedestal", "Minimal Pedestal", "product-shot", "image", 4, "1:1", "{PRODUCT} centered on a stone pedestal, minimal pastel set, soft shadows {EDIT}", 303],
-  ["sunlight-table", "Sunlight Table", "product-shot", "image", 4, "4:3", "{PRODUCT} on a linen table by a sunny window, hard sunlight, long shadows {EDIT}", 404],
-  ["orbit-motion", "Orbit Motion", "motion", "video", 135, "1:1", "{PRODUCT} floating in a glossy sphere, slow orbit, studio reflections {EDIT}", 505],
-  ["liquid-pour", "Liquid Pour", "motion", "video", 120, "9:16", "Macro slow-motion liquid pouring over {PRODUCT}, droplets frozen mid air {EDIT}", 606],
-  ["selfie-review", "Selfie Review", "ugc", "image", 6, "9:16", "Front-facing selfie of a creator holding {PRODUCT}, casual bedroom lighting, authentic vibe {EDIT}", 707],
-  ["desk-unboxing", "Desk Unboxing", "ugc", "image", 6, "9:16", "{PRODUCT} mid-unboxing on a cluttered desk, phone-camera angle, honest textures {EDIT}", 808],
-  ["launch-announcement", "Launch Announcement", "ads", "image", 8, "3:4", "Bold launch poster for {PRODUCT}, high contrast color blocking, punchy type space {EDIT}", 909],
-  ["fizzy-promo", "Fizzy Promo", "ads", "video", 100, "9:16", "Explosive fizzy promo: {PRODUCT} bursting with citrus splashes, comic energy {EDIT}", 1010],
-  ["bold-type-poster", "Bold Type Poster", "posters", "image", 8, "3:4", "Swiss type poster featuring {PRODUCT}, oversized typography, two-color risograph print {EDIT}", 1111],
-  ["retro-print", "Retro Print", "posters", "image", 8, "3:4", "Retro travel-poster style ad for {PRODUCT}, grainy gradients, 70s palette {EDIT}", 1212],
-  ["clean-listing", "Clean Listing", "marketplace", "image", 3, "1:1", "Clean e-commerce listing photo of {PRODUCT}, pure white background, even studio light {EDIT}", 1313],
-  ["lifestyle-context", "Lifestyle Context", "marketplace", "image", 3, "4:3", "{PRODUCT} in a cozy lifestyle scene, morning kitchen, natural window light {EDIT}", 1414],
+  ["studio-hero", "旗舰主图", "product-shot", "image", 4, "3:4", "Studio hero shot of {PRODUCT}, soft warm key light, cream seamless backdrop, shallow depth of field {EDIT}", 101],
+  ["closeup-glow", "特写光感", "product-shot", "image", 4, "3:4", "Extreme closeup of {PRODUCT} held toward camera, dewy skin glow, beauty lighting {EDIT}", 202],
+  ["minimal-pedestal", "极简基座", "product-shot", "image", 4, "1:1", "{PRODUCT} centered on a stone pedestal, minimal pastel set, soft shadows {EDIT}", 303],
+  ["sunlight-table", "阳光桌拍", "product-shot", "image", 4, "4:3", "{PRODUCT} on a linen table by a sunny window, hard sunlight, long shadows {EDIT}", 404],
+  ["orbit-motion", "环绕运镜", "motion", "video", 135, "1:1", "{PRODUCT} floating in a glossy sphere, slow orbit, studio reflections {EDIT}", 505],
+  ["liquid-pour", "液体倾倒", "motion", "video", 120, "9:16", "Macro slow-motion liquid pouring over {PRODUCT}, droplets frozen mid air {EDIT}", 606],
+  ["selfie-review", "自拍实测", "ugc", "image", 6, "9:16", "Front-facing selfie of a creator holding {PRODUCT}, casual bedroom lighting, authentic vibe {EDIT}", 707],
+  ["desk-unboxing", "桌面开箱", "ugc", "image", 6, "9:16", "{PRODUCT} mid-unboxing on a cluttered desk, phone-camera angle, honest textures {EDIT}", 808],
+  ["launch-announcement", "发布官宣", "ads", "image", 8, "3:4", "Bold launch poster for {PRODUCT}, high contrast color blocking, punchy type space {EDIT}", 909],
+  ["fizzy-promo", "气泡促销", "ads", "video", 100, "9:16", "Explosive fizzy promo: {PRODUCT} bursting with citrus splashes, comic energy {EDIT}", 1010],
+  ["bold-type-poster", "大字报海报", "posters", "image", 8, "3:4", "Swiss type poster featuring {PRODUCT}, oversized typography, two-color risograph print {EDIT}", 1111],
+  ["retro-print", "复古印刷", "posters", "image", 8, "3:4", "Retro travel-poster style ad for {PRODUCT}, grainy gradients, 70s palette {EDIT}", 1212],
+  ["clean-listing", "电商白底图", "marketplace", "image", 3, "1:1", "Clean e-commerce listing photo of {PRODUCT}, pure white background, even studio light {EDIT}", 1313],
+  ["lifestyle-context", "生活场景", "marketplace", "image", 3, "4:3", "{PRODUCT} in a cozy lifestyle scene, morning kitchen, natural window light {EDIT}", 1414],
 ];
 
 export async function migrate(db: DbClient): Promise<void> {

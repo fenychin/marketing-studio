@@ -6,6 +6,16 @@ import { RecreateReportGates } from "./RecreateReport";
 import { EditScriptModal } from "./EditScriptModal";
 import type { GenerationDto, JobDto } from "@studio/shared";
 
+const PLATFORM_LABELS: Record<string, string> = { tiktok: "TikTok", reels: "Reels", shorts: "Shorts" };
+
+const STATUS_LABELS: Record<string, string> = {
+  queued: "排队中",
+  running: "渲染中",
+  succeeded: "已完成",
+  failed: "失败",
+  cancelled: "已取消",
+};
+
 interface AgentMeta {
   source?: string;
   platform?: string;
@@ -63,16 +73,16 @@ function GenerationCard({ generation, job }: { generation: GenerationDto; job: J
       {/* QC + review badges */}
       <div className="absolute left-2 top-2 flex gap-1">
         {generation.qcStatus === "passed" && (
-          <span className="rounded-md bg-[#1d2a08]/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#c7e34c]">QC ✓</span>
+          <span className="rounded-md bg-[#1d2a08]/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#c7e34c]">质检 ✓</span>
         )}
         {generation.qcStatus === "flagged" && (
-          <span className="rounded-md bg-[#3a2508]/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">QC ⚠</span>
+          <span className="rounded-md bg-[#3a2508]/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">质检 ⚠</span>
         )}
         {approved && (
-          <span className="rounded-md bg-[#122a12]/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">Approved</span>
+          <span className="rounded-md bg-[#122a12]/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">已通过</span>
         )}
         {rejected && (
-          <span className="rounded-md bg-[#2a0d12]/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-300">Rejected</span>
+          <span className="rounded-md bg-[#2a0d12]/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-300">已驳回</span>
         )}
       </div>
 
@@ -109,17 +119,17 @@ function GenerationCard({ generation, job }: { generation: GenerationDto; job: J
           disabled={regenerate.isPending}
           className="absolute bottom-9 right-2 rounded-lg bg-[#ddf24b] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-black disabled:opacity-50"
         >
-          {regenerate.isPending ? "Re-rendering…" : "Free re-render"}
+          {regenerate.isPending ? "重渲中…" : "免费重渲"}
         </button>
       )}
 
-      <span className="absolute bottom-2 left-2 flex gap-1">
+      <div className="flex flex-wrap items-center gap-1 px-1 pt-1">
         <span className="rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
           {generation.model}
         </span>
         {agent.source === "product-link" && agent.platform && (
           <span className="rounded-md bg-[#e80f7c]/85 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-            {agent.platform}
+            {PLATFORM_LABELS[agent.platform] ?? agent.platform}
           </span>
         )}
         {agent.source === "ad-reference" && (
@@ -130,9 +140,9 @@ function GenerationCard({ generation, job }: { generation: GenerationDto; job: J
         {replica && (
           <button
             onClick={() => setShowEditor(true)}
-            className="rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-200 transition-colors hover:bg-black/80"
+            className="rounded-md border border-[#333] bg-black/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-200 transition-colors hover:border-neutral-500"
           >
-            ✎ Edit
+            ✎ 编辑
           </button>
         )}
         {replica && (
@@ -142,10 +152,10 @@ function GenerationCard({ generation, job }: { generation: GenerationDto; job: J
               showReport ? "bg-[#ddf24b] text-black" : "bg-black/60 text-[#9adf2a] hover:bg-black/80"
             }`}
           >
-            {showReport ? "✕ Report" : "✦ Report"}
+            {showReport ? "✕ 报告" : "✦ 报告"}
           </button>
         )}
-      </span>
+      </div>
       </div>
       {replica && (
         <div className="px-1 pb-1">
@@ -166,7 +176,7 @@ function JobProgressCard({ job }: { job: JobDto }) {
             <div className="h-full rounded-full bg-[#ddf24b] transition-all" style={{ width: `${job.progress}%` }} />
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-wider text-[#8a8a8a]">
-            {job.status === "failed" ? `Failed — ${job.error ?? "error"}` : `${job.status} ${job.progress}%`}
+            {job.status === "failed" ? `失败 — ${job.error ?? "未知错误"}` : `${STATUS_LABELS[job.status] ?? job.status} ${job.progress}%`}
           </div>
         </div>
       </div>

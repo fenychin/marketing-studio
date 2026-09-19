@@ -16,7 +16,7 @@ export function registerCredentialRoutes(app: FastifyInstance): void {
     }
     const secret = body.secret ?? "";
     if (secret.length < 4) {
-      return reply.code(400).send({ error: { code: "weak_secret", message: "secret is required (min 4 chars)." } });
+      return reply.code(400).send({ error: { code: "weak_secret", message: "请输入密钥内容（至少 4 个字符）。" } });
     }
     await storeSecret(request.tenant!.id, ref, body.kind ?? "api_key", secret);
     await audit(request.tenant!.id, "credential.upsert", ref, {});

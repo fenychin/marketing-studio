@@ -27,7 +27,7 @@ export async function resolveTenant(request: FastifyRequest, reply: FastifyReply
       [hashApiKey(apiKey)],
     );
     if (!row || row.disabled_at !== null) {
-      return reply.code(401).send({ error: { code: "invalid_api_key", message: "Unknown or disabled API key." } });
+      return reply.code(401).send({ error: { code: "invalid_api_key", message: "API 密钥无效或已停用。" } });
     }
     request.tenant = { id: row.id, name: row.name };
     return;
@@ -38,7 +38,7 @@ export async function resolveTenant(request: FastifyRequest, reply: FastifyReply
   if (typeof bearer === "string" && bearer.startsWith("Bearer ")) {
     const claims = verifyJwt(bearer.slice(7));
     if (!claims) {
-      return reply.code(401).send({ error: { code: "invalid_token", message: "Session expired — sign in again." } });
+      return reply.code(401).send({ error: { code: "invalid_token", message: "会话已过期，请重新登录。" } });
     }
     request.tenant = { id: claims.tid, name: claims.org };
     request.user = { id: claims.sub, email: claims.email };
@@ -71,5 +71,5 @@ export async function resolveTenant(request: FastifyRequest, reply: FastifyReply
     }
   }
 
-  return reply.code(401).send({ error: { code: "missing_credentials", message: "Send x-api-key or Authorization: Bearer." } });
+  return reply.code(401).send({ error: { code: "missing_credentials", message: "请提供 x-api-key 或 Authorization: Bearer 请求头。" } });
 }

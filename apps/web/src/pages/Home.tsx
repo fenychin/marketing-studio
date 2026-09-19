@@ -45,10 +45,10 @@ export function Home() {
       <HeroCarousel templates={templates.data?.templates ?? []} />
 
       <div className="mb-6 text-center">
-        <h1 className="display-font text-[38px] uppercase leading-[1.05] text-white">Turn any product</h1>
-        <h1 className="display-font text-[38px] uppercase leading-[1.05] text-[#5f5f5f]">Into ready to post content</h1>
+        <h1 className="display-font text-[38px] uppercase leading-[1.05] text-white">把任何商品</h1>
+        <h1 className="display-font text-[38px] uppercase leading-[1.05] text-[#5f5f5f]">变成即发内容</h1>
         {credits.data && (
-          <div className="mt-2 text-[12px] font-semibold text-[#8a8a8a]">Balance ✦ {credits.data.balance} credits</div>
+          <div className="mt-2 text-[12px] font-semibold text-[#8a8a8a]">余额 ✦ {credits.data.balance} 积分</div>
         )}
       </div>
 

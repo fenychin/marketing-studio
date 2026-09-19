@@ -55,7 +55,7 @@ export function registerTemplateRoutes(app: FastifyInstance): void {
       count?: number;
     };
     const template = await db().get<TemplateRow>("SELECT * FROM templates WHERE id=?", [id]);
-    if (!template) return reply.code(404).send({ error: { code: "not_found", message: "Template not found." } });
+    if (!template) return reply.code(404).send({ error: { code: "not_found", message: "模板不存在。" } });
 
     const prompt = template.prompt_template
       .replaceAll("{PRODUCT}", "the uploaded product")

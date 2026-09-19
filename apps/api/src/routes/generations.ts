@@ -53,7 +53,7 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
   app.get("/v1/generations/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const job = await getJob(id, request.tenant!.id);
-    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
+    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "作业不存在。" } });
     return { job: await jobWithGenerations(request.tenant!.id, job) };
   });
 
@@ -75,11 +75,11 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
   app.get("/v1/generations/:id/recreate-report", async (request, reply) => {
     const { id } = request.params as { id: string };
     const job = await getJob(id, request.tenant!.id);
-    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
+    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "作业不存在。" } });
     const params = JSON.parse(job.params) as { agent?: { report?: unknown } };
     const report = params.agent?.report;
     if (!report) {
-      return reply.code(404).send({ error: { code: "no_report", message: "This job carries no replica metadata." } });
+      return reply.code(404).send({ error: { code: "no_report", message: "该作业没有复刻验收数据。" } });
     }
     return { report };
   });
@@ -88,13 +88,13 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
   app.get("/v1/generations/:id/script", async (request, reply) => {
     const { id } = request.params as { id: string };
     const job = await getJob(id, request.tenant!.id);
-    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
+    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "作业不存在。" } });
     const params = JSON.parse(job.params) as GenerationParams;
     const agent = params.agent as
       | { dna?: AdDNA; beatTexts?: Array<{ index: number; text: string }>; language?: "zh" | "en"; source?: string }
       | undefined;
     if (!agent?.dna || !agent.beatTexts) {
-      return reply.code(404).send({ error: { code: "no_script", message: "This job has no editable beat script." } });
+      return reply.code(404).send({ error: { code: "no_script", message: "该作业没有可编辑的拍脚本。" } });
     }
     return { jobId: id, source: agent.source ?? "edit", language: agent.language ?? "en", dna: agent.dna, beatTexts: agent.beatTexts };
   });
@@ -110,17 +110,17 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
     const body = (request.body ?? {}) as { beatTexts?: Array<{ index?: number; text?: string }> };
     try {
       const job = await getJob(id, request.tenant!.id);
-      if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
+      if (!job) return reply.code(404).send({ error: { code: "not_found", message: "作业不存在。" } });
       const params = JSON.parse(job.params) as GenerationParams;
       const agent = params.agent as
         | { dna?: AdDNA; beatTexts?: Array<{ index: number; text: string }>; language?: "zh" | "en"; source?: string }
         | undefined;
       if (!agent?.dna || !agent.beatTexts) {
-        return reply.code(409).send({ error: { code: "no_script", message: "Only beat-anchored jobs can be script-edited." } });
+        return reply.code(409).send({ error: { code: "no_script", message: "仅拍锚定作业支持脚本编辑。" } });
       }
       const texts = Array.isArray(body.beatTexts) ? body.beatTexts : [];
       if (texts.length !== agent.dna.beats.length || texts.some((t) => typeof t.text !== "string" || t.text.trim().length === 0)) {
-        return reply.code(400).send({ error: { code: "invalid_beats", message: `beatTexts must contain ${agent.dna.beats.length} non-empty texts.` } });
+        return reply.code(400).send({ error: { code: "invalid_beats", message: `beatTexts 需要恰好 ${agent.dna.beats.length} 条非空台词。` } });
       }
       const beatTexts = texts.map((t, index) => ({ index, text: t.text!.trim() }));
       const report = buildRecreateReport({
@@ -177,7 +177,7 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
     const { id } = request.params as { id: string };
     const body = (request.body ?? {}) as { favorite?: boolean };
     const row = await getGeneration(request.tenant!.id, id);
-    if (!row) return reply.code(404).send({ error: { code: "not_found", message: "Generation not found." } });
+    if (!row) return reply.code(404).send({ error: { code: "not_found", message: "生成结果不存在。" } });
     const next = body.favorite === undefined ? (row.favorite === 1 ? 0 : 1) : body.favorite ? 1 : 0;
     await db().run("UPDATE generations SET favorite=? WHERE id=? AND tenant_id=?", [next, id, request.tenant!.id]);
     return { id, favorite: next === 1 };
@@ -190,7 +190,7 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
     const verdict = body.verdict === "approved" || body.verdict === "rejected" ? body.verdict : null;
     if (!verdict) return reply.code(400).send({ error: { code: "invalid_verdict", message: "verdict must be approved or rejected." } });
     const row = await getGeneration(request.tenant!.id, id);
-    if (!row) return reply.code(404).send({ error: { code: "not_found", message: "Generation not found." } });
+    if (!row) return reply.code(404).send({ error: { code: "not_found", message: "生成结果不存在。" } });
     await db().run("UPDATE generations SET review_status=?, review_note=? WHERE id=? AND tenant_id=?", [
       verdict, body.note?.trim() || null, id, request.tenant!.id,
     ]);
@@ -202,7 +202,7 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
     const { id } = request.params as { id: string };
     const tenantId = request.tenant!.id;
     const row = await getGeneration(tenantId, id);
-    if (!row) return reply.code(404).send({ error: { code: "not_found", message: "Generation not found." } });
+    if (!row) return reply.code(404).send({ error: { code: "not_found", message: "生成结果不存在。" } });
     const existing = await db().get<{ n: number }>(
       "SELECT CAST(COUNT(*) AS INTEGER) AS n FROM jobs WHERE free_resample_of=?",
       [id],
@@ -211,7 +211,7 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
       return reply.code(409).send({ error: { code: "already_regenerated", message: "This generation already used its free re-render." } });
     }
     const job = await getJob(row.job_id, tenantId);
-    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Source job not found." } });
+    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "源作业不存在。" } });
     try {
       const newJob = await submitGeneration(tenantId, {
         kind: job.kind,
@@ -233,7 +233,7 @@ export function registerGenerationRoutes(app: FastifyInstance): void {
   app.get("/v1/generations/:id/events", async (request, reply) => {
     const { id } = request.params as { id: string };
     const job = await getJob(id, request.tenant!.id);
-    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "Job not found." } });
+    if (!job) return reply.code(404).send({ error: { code: "not_found", message: "作业不存在。" } });
 
     reply.raw.writeHead(200, {
       "content-type": "text/event-stream",

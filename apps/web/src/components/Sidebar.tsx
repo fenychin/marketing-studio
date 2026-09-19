@@ -8,8 +8,8 @@ import { IntegrationsModal } from "./IntegrationsModal";
 import type { ProjectDto } from "@studio/shared";
 
 const DEMO_KEYS = [
-  { label: "Alpha workspace", key: "sk_demo_alpha" },
-  { label: "Beta workspace", key: "sk_demo_beta" },
+  { label: "Alpha 工作区", key: "sk_demo_alpha" },
+  { label: "Beta 工作区", key: "sk_demo_beta" },
 ];
 
 function NavItem({ to, icon, label }: { to: string; icon: string; label: string }) {
@@ -62,47 +62,47 @@ export function Sidebar() {
       </div>
 
       <nav className="space-y-0.5">
-        <NavItem to="/" icon={icons.home} label="Home" />
-        <NavItem to="/generations" icon={icons.grid} label="My generations" />
-        <NavItem to="/favorites" icon={icons.heart} label="My favorites" />
+        <NavItem to="/" icon={icons.home} label="首页" />
+        <NavItem to="/generations" icon={icons.grid} label="我的生成" />
+        <NavItem to="/favorites" icon={icons.heart} label="我的收藏" />
       </nav>
 
-      <Section>Tools</Section>
+      <Section>工具</Section>
       <nav className="space-y-0.5">
         <button
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-[#9a9a9a] transition-colors hover:bg-[#161616] hover:text-neutral-200"
           onClick={() => window.dispatchEvent(new CustomEvent("studio:tool", { detail: "ad-reference" }))}
         >
           <span className="grid h-5 w-5 place-items-center rounded bg-gradient-to-br from-fuchsia-500 to-pink-600 text-[10px]">▶</span>
-          Ad Reference
+          广告参考
         </button>
         <button
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-[#9a9a9a] transition-colors hover:bg-[#161616] hover:text-neutral-200"
           onClick={() => window.dispatchEvent(new CustomEvent("studio:tool", { detail: "product-link" }))}
         >
           <span className="grid h-5 w-5 place-items-center rounded bg-gradient-to-br from-pink-500 to-rose-600 text-[10px]">✦</span>
-          Product Link
+          商品链接
         </button>
         <button
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-[#9a9a9a] transition-colors hover:bg-[#161616] hover:text-neutral-200"
           onClick={() => setIntegrationsOpen(true)}
         >
           <span className="grid h-5 w-5 place-items-center rounded bg-gradient-to-br from-cyan-500 to-sky-600 text-[10px]">⚡</span>
-          Integrations
+          渠道集成
         </button>
       </nav>
 
-      <Section>Projects</Section>
+      <Section>项目</Section>
       <div className="space-y-0.5">
         <button
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-[#9a9a9a] transition-colors hover:bg-[#161616] hover:text-neutral-200"
           onClick={() => {
-            const name = window.prompt("Project name", "Spring campaign");
+            const name = window.prompt("项目名称", "春季推广");
             if (name) createProject.mutate(name);
           }}
         >
           <Icon path={icons.plus} />
-          New project
+          新建项目
         </button>
         {projects.data?.projects.map((p) => (
           <div key={p.id} className="truncate rounded-lg px-3 py-1.5 text-[13px] text-[#6f6f6f]">
@@ -123,12 +123,12 @@ export function Sidebar() {
                 navigate("/");
               }}
             >
-              Sign out
+              退出登录
             </button>
           </div>
         ) : (
           <div className="rounded-xl border border-[#232323] bg-[#101010] p-2.5">
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#565656]">Workspace</div>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#565656]">工作区</div>
             <select
               className="w-full rounded-md border border-[#2a2a2a] bg-[#161616] px-2 py-1.5 text-[12px] text-neutral-300"
               value={currentKey}
@@ -149,7 +149,7 @@ export function Sidebar() {
               className="mt-2 w-full rounded-md border border-[#2e2e2e] py-1.5 text-[11px] font-semibold text-[#9a9a9a] hover:border-neutral-500 hover:text-neutral-200"
               onClick={() => navigate("/login")}
             >
-              Sign in to a workspace
+              登录工作区
             </button>
           </div>
         )}
@@ -157,8 +157,8 @@ export function Sidebar() {
           className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[13px] font-semibold text-[#f0559a]"
           onClick={() => setTopUpOpen(true)}
         >
-          Pricing
-          <span className="rounded-full bg-gradient-to-r from-pink-600 to-fuchsia-500 px-1.5 py-0.5 text-[10px] font-bold text-white">50% OFF</span>
+          充值
+          <span className="rounded-full bg-gradient-to-r from-pink-600 to-fuchsia-500 px-1.5 py-0.5 text-[10px] font-bold text-white">5 折</span>
         </button>
       </div>
 

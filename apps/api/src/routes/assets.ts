@@ -52,7 +52,7 @@ export function registerAssetRoutes(app: FastifyInstance): void {
     const row = await db().get("SELECT * FROM assets WHERE id=? AND tenant_id=?", [id, request.tenant!.id]) as
       | Parameters<typeof assetToDto>[0]
       | undefined;
-    if (!row) return reply.code(404).send({ error: { code: "not_found", message: "Asset not found." } });
+    if (!row) return reply.code(404).send({ error: { code: "not_found", message: "素材不存在。" } });
     return { asset: assetToDto(row) };
   });
 }
