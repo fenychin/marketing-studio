@@ -1,0 +1,122 @@
+# Studio K8s manifests (single-file for scaffold clarity; split per env in prod)
+# Multi-tenant notes: JWT secret from Secret; Postgres/S3 endpoints injected as
+# env; API is stateless (SQLite data dir only for dev — use Postgres in prod).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: studio
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: studio-secrets
+  namespace: studio
+type: Opaque
+stringData:
+  STUDIO_JWT_SECRET: "replace-with-64byte-random"
+  STUDIO_PAYMENT_WEBHOOK_SECRET: "replace-with-random"
+  STUDIO_OPENAI_API_KEY: ""
+  STUDIO_S3_ACCESS_KEY_ID: ""
+  STUDIO_S3_SECRET_ACCESS_KEY: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studio-api
+  namespace: studio
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: studio-api }
+  template:
+    metadata:
+      labels: { app: studio-api }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/example/marketing-studio-api:latest
+          ports: [{ containerPort: 8787 }]
+          envFrom:
+            - secretRef: { name: studio-secrets }
+          env:
+            - name: STUDIO_DB_DRIVER
+              value: postgres            # hosted Postgres endpoint via node-postgres shim
+            - name: STUDIO_STORAGE_DRIVER
+              value: s3
+            - name: STUDIO_S3_BUCKET
+              value: studio-artifacts
+            - name: STUDIO_S3_REGION
+              value: us-east-1
+          readinessProbe:
+            httpGet: { path: /health, port: 8787 }
+            initialDelaySeconds: 3
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits: { cpu: "2", memory: "2Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studio-api
+  namespace: studio
+spec:
+  selector: { app: studio-api }
+  ports: [{ port: 80, targetPort: 8787 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studio-web
+  namespace: studio
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: studio-web }
+  template:
+    metadata:
+      labels: { app: studio-web }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/example/marketing-studio-web:latest
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studio-web
+  namespace: studio
+spec:
+  selector: { app: studio-web }
+  ports: [{ port: 80, targetPort: 80 }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: studio-api
+  namespace: studio
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: studio-api }
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: studio
+  namespace: studio
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 64m
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /v1/
+            pathType: Prefix
+            backend: { service: { name: studio-api, port: { number: 80 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: studio-web, port: { number: 80 } } }

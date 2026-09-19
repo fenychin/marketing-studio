@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0a;
+  --panel: #141414;
+  --panel-2: #1b1b1b;
+  --line: #242424;
+  --ink: #ededed;
+  --ink-dim: #8b8b8b;
+  --ink-faint: #5c5c5c;
+  --accent-yellow: #ddf24b;
+  --accent-pink: #f0257f;
+  --accent-olive: #93a636;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dot-grid {
+  background-image: radial-gradient(#1d1d1d 1px, transparent 1.1px);
+  background-size: 22px 22px;
+}
+
+.display-font {
+  font-family: "Arial Black", "Segoe UI Black", Inter, system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.chip {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-[#2a2a2a] bg-[#161616] px-3 py-1.5 text-[12px] font-semibold text-neutral-300 transition-colors hover:border-neutral-600;
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #2c2c2c;
+  border-radius: 3px;
+}
+
+textarea:focus,
+input:focus {
+  outline: none;
+}

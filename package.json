@@ -1,0 +1,19 @@
+{
+  "name": "marketing-studio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Self-developed multi-tenant web marketing studio (independent implementation)",
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "dev:api": "tsx watch apps/api/src/index.ts",
+    "dev:web": "pnpm --filter @studio/web dev",
+    "dev:channel": "pnpm --filter @studio/mock-channel start",
+    "build:web": "pnpm --filter @studio/web build",
+    "check": "pnpm -r exec tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

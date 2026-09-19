@@ -1,0 +1,39 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    environment:
+      STUDIO_JWT_SECRET: ${STUDIO_JWT_SECRET:-change-me}
+      STUDIO_PAYMENT_WEBHOOK_SECRET: ${STUDIO_PAYMENT_WEBHOOK_SECRET:-change-me}
+      STUDIO_DB_DRIVER: ${STUDIO_DB_DRIVER:-sqlite}
+      STUDIO_STORAGE_DRIVER: ${STUDIO_STORAGE_DRIVER:-fs}
+      STUDIO_OPENAI_BASE_URL: ${STUDIO_OPENAI_BASE_URL:-}
+      STUDIO_OPENAI_API_KEY: ${STUDIO_OPENAI_API_KEY:-}
+      STUDIO_VIDEO_CHANNEL_URL: ${STUDIO_VIDEO_CHANNEL_URL:-}
+      STUDIO_VIDEO_CHANNEL_KEY: ${STUDIO_VIDEO_CHANNEL_KEY:-}
+    volumes:
+      - studio-data:/data
+    ports:
+      - "8787:8787"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    depends_on:
+      - api
+    ports:
+      - "5273:80"
+
+  mock-channel:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    working_dir: /app
+    command: ["node", "--import", "tsx", "apps/mock-channel/src/index.ts"]
+    ports:
+      - "8790:8790"
+
+volumes:
+  studio-data:
