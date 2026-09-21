@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../db/index.js";
 import { aspectSize } from "../placeholder.js";
-import { defaultModel } from "../providers/registry.js";
+import { defaultModel, resolveModel } from "../providers/registry.js";
 import { SubmissionError, submitGeneration } from "../jobs.js";
 import type { TemplateCategory, TemplateDto } from "@studio/shared";
 
@@ -15,6 +15,8 @@ interface TemplateRow {
   aspect_ratio: string;
   prompt_template: string;
   seed: number;
+  thumb_url?: string | null;
+  reference_asset_id?: string | null;
 }
 
 function toDto(row: TemplateRow): TemplateDto {
@@ -28,7 +30,7 @@ function toDto(row: TemplateRow): TemplateDto {
     kind: row.kind,
     credits: row.credits,
     aspectRatio: row.aspect_ratio as TemplateDto["aspectRatio"],
-    thumbUrl: `/v1/assets/placeholder?seed=${row.seed}&w=${width}&h=${height}&kind=${row.kind}&label=${encodeURIComponent(label)}`,
+    thumbUrl: row.thumb_url ?? `/v1/assets/placeholder?seed=${row.seed}&w=${width}&h=${height}&kind=${row.kind}&label=${encodeURIComponent(label)}`,
     promptTemplate: row.prompt_template,
   };
 }
@@ -53,6 +55,7 @@ export function registerTemplateRoutes(app: FastifyInstance): void {
       avatarAssetId?: string;
       edit?: string;
       count?: number;
+      model?: string;
     };
     const template = await db().get<TemplateRow>("SELECT * FROM templates WHERE id=?", [id]);
     if (!template) return reply.code(404).send({ error: { code: "not_found", message: "模板不存在。" } });
@@ -64,19 +67,25 @@ export function registerTemplateRoutes(app: FastifyInstance): void {
       .replace(/\s+/g, " ")
       .trim();
 
+    // 复刻工作流:模板参考素材(抓取的封面/预览视频)进入生成链,
+    // 供真实渠道做参考编辑/首帧驱动,参考素材优先于用户上传头像。
     const references = [] as Array<{ assetId: string; role: "product" | "avatar" | "reference" }>;
     if (body.productAssetId) references.push({ assetId: body.productAssetId, role: "product" });
     if (body.avatarAssetId) references.push({ assetId: body.avatarAssetId, role: "avatar" });
+    if (template.reference_asset_id) references.push({ assetId: template.reference_asset_id, role: "reference" });
+
+    // 模型可由请求指定(真实渠道),缺省用该类型默认模型
+    const model = (body.model && resolveModel(String(body.model), template.kind)?.id) || defaultModel(template.kind).id;
 
     try {
       const job = await submitGeneration(tenantId, {
         kind: template.kind,
-        model: defaultModel(template.kind).id,
+        model,
         prompt,
         templateId: template.id,
         params: {
           aspectRatio: template.aspect_ratio as never,
-          count: Math.min(Math.max(body.count ?? 4, 1), 4),
+          count: Math.min(Math.max(body.count ?? 1, 1), 4),
           ...(references.length > 0 ? { references } : {}),
         },
       });

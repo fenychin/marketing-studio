@@ -4,7 +4,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { Icon, icons } from "./Icons";
 import { Modal } from "./Modal";
-import type { AssetDto, TemplateDto } from "@studio/shared";
+
+import type { AssetDto, ModelInfo, TemplateDto } from "@studio/shared";
+import { useQuery } from "@tanstack/react-query";
 
 interface PlanResult {
   valid: boolean;
@@ -70,13 +72,24 @@ export function RecreateModal({ template, onClose }: { template: TemplateDto; on
   const [avatar, setAvatar] = useState<AssetDto | undefined>();
   const [edit, setEdit] = useState("");
   const [plan, setPlan] = useState<PlanResult | null>(null);
+  const [modelId, setModelId] = useState<string | null>(null);
 
-  // Plan-mode: real price for 4 variants before spending anything.
+  // 模型目录:默认模型 + BYOK/真实渠道(minimax-h3、seedance-2-5、gpt-image 等)
+  const models = useQuery({
+    queryKey: ["models", template.kind],
+    queryFn: () => api<{ models: ModelInfo[] }>(`/v1/models?kind=${template.kind}`),
+  });
+  const modelList = models.data?.models ?? [];
+  const model = modelList.find((m) => m.id === modelId) ?? modelList[0];
+  const count = 1;
+
+  // Plan-mode: 复刻前真实报价(模型 + count 与提交一致)。
   useEffect(() => {
-    api<PlanResult>("/v1/plan", { method: "POST", json: { templateId: template.id, count: 4 } })
+    if (!model) return;
+    api<PlanResult>("/v1/plan", { method: "POST", json: { templateId: template.id, count, model: model.id } })
       .then(setPlan)
       .catch(() => setPlan(null));
-  }, [template.id]);
+  }, [template.id, model?.id]);
 
   return (
     <Modal title="" onClose={onClose} width="max-w-3xl">
@@ -118,8 +131,22 @@ export function RecreateModal({ template, onClose }: { template: TemplateDto; on
               className="w-full resize-none rounded-xl border border-[#2e2e2e] bg-[#101010] p-3 text-[13px] text-neutral-200 placeholder:text-[#5f5f5f]"
             />
           </div>
+          <div className="mb-3">
+            <div className="mb-1.5 text-[12px] text-[#9a9a9a]">生成引擎</div>
+            <select
+              value={model?.id ?? ""}
+              onChange={(e) => setModelId(e.target.value)}
+              className="w-full rounded-xl border border-[#2e2e2e] bg-[#101010] px-3 py-2.5 text-[13px] text-neutral-200"
+            >
+              {modelList.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} · ✦{m.creditsPerUnit}/张
+                </option>
+              ))}
+            </select>
+          </div>
           <button
-            disabled={upload.isPending || create.isPending}
+            disabled={upload.isPending || create.isPending || !model}
             onClick={() =>
               create.mutate({
                 // Server-side slot interpolation ({PRODUCT}/{AVATAR}/{EDIT}) —
@@ -129,7 +156,8 @@ export function RecreateModal({ template, onClose }: { template: TemplateDto; on
                   productAssetId: product?.id,
                   avatarAssetId: avatar?.id,
                   edit: edit.trim() || undefined,
-                  count: 4,
+                  count,
+                  model: model?.id,
                 },
               })
             }

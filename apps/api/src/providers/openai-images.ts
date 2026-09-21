@@ -18,12 +18,31 @@ export class OpenAiImagesProvider implements ModelProvider {
     const { width, height } = aspectSize(ctx.params.aspectRatio);
     const size = `${width}x${height}`;
     const out: ProducedArtifact[] = [];
+    const imageRefs = ctx.references.filter((r) => r.mime.startsWith("image/"));
     for (let i = 0; i < ctx.params.count; i++) {
-      const response = await fetch(`${this.baseUrl}/images/generations`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${this.apiKey}`, "content-type": "application/json" },
-        body: JSON.stringify({ model: this.model, prompt: ctx.prompt, size, n: 1 }),
-      });
+      // GPT Image 参考编辑:带参考图走 /images/edits(复刻工作流),
+      // 无参考图走 /images/generations(纯文生图)。
+      let response: Response;
+      if (imageRefs.length > 0) {
+        const form = new FormData();
+        form.append("model", this.model);
+        form.append("prompt", ctx.prompt);
+        form.append("size", size === "1024x1024" ? "1024x1024" : "auto");
+        for (const ref of imageRefs.slice(0, 4)) {
+          form.append("image[]", new Blob([new Uint8Array(ref.buffer)], { type: ref.mime }), `reference.${ref.mime.split("/")[1] ?? "png"}`);
+        }
+        response = await fetch(`${this.baseUrl}/images/edits`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${this.apiKey}` },
+          body: form,
+        });
+      } else {
+        response = await fetch(`${this.baseUrl}/images/generations`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${this.apiKey}`, "content-type": "application/json" },
+          body: JSON.stringify({ model: this.model, prompt: ctx.prompt, size, n: 1 }),
+        });
+      }
       if (!response.ok) {
         const body = await response.text().catch(() => "");
         throw new Error(`channel ${response.status}: ${body.slice(0, 300)}`);

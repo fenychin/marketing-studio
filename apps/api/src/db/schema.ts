@@ -91,6 +91,9 @@ export async function migrate(db: DbClient): Promise<void> {
     "ALTER TABLE jobs ADD COLUMN free_resample_of TEXT",
     "ALTER TABLE api_keys ADD COLUMN key_hash TEXT",
     "ALTER TABLE api_keys ADD COLUMN prefix TEXT",
+    "ALTER TABLE templates ADD COLUMN source TEXT DEFAULT 'builtin'",
+    "ALTER TABLE templates ADD COLUMN thumb_url TEXT",
+    "ALTER TABLE templates ADD COLUMN reference_asset_id TEXT",
   ];
   for (const sql of additions) {
     try {

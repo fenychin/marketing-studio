@@ -6,6 +6,8 @@ export interface Config {
   dataDir: string;
   openai?: { baseUrl: string; apiKey: string; imageModel: string };
   videoChannel?: { baseUrl: string; apiKey: string; model: string };
+  minimax?: { baseUrl: string; apiKey: string; model: string };
+  seedance?: { baseUrl: string; apiKey: string; model: string };
 }
 
 function loadDotEnv(): void {
@@ -32,6 +34,20 @@ export function loadConfig(): Config {
     videoChannel: channelUrl && channelKey
       ? { baseUrl: channelUrl.replace(/\/$/, ""), apiKey: channelKey, model: process.env.STUDIO_VIDEO_CHANNEL_MODEL ?? "channel-video-v1" }
       : undefined,
+    minimax: (() => {
+      const mmBase = process.env.STUDIO_MINIMAX_BASE_URL?.trim();
+      const mmKey = process.env.STUDIO_MINIMAX_API_KEY?.trim();
+      return mmBase && mmKey
+        ? { baseUrl: mmBase.replace(/\/$/, ""), apiKey: mmKey, model: process.env.STUDIO_MINIMAX_MODEL ?? "MiniMax-H3" }
+        : undefined;
+    })(),
+    seedance: (() => {
+      const sdBase = process.env.STUDIO_SEEDANCE_BASE_URL?.trim();
+      const sdKey = process.env.STUDIO_SEEDANCE_API_KEY?.trim();
+      return sdBase && sdKey
+        ? { baseUrl: sdBase.replace(/\/$/, ""), apiKey: sdKey, model: process.env.STUDIO_SEEDANCE_MODEL ?? "doubao-seedance-2-5-pro" }
+        : undefined;
+    })(),
   };
 }
 

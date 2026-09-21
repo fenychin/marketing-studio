@@ -4,6 +4,8 @@ import { MockProvider } from "./mock.js";
 import { OpenAiImagesProvider } from "./openai-images.js";
 import { LocalRenderProvider } from "./local-render.js";
 import { AsyncVideoProvider } from "./async-video.js";
+import { MiniMaxVideoProvider } from "./minimax-video.js";
+import { SeedanceProvider } from "./seedance-video.js";
 import type { Config } from "../config.js";
 
 interface ModelDef extends Omit<ModelInfo, "provider"> {
@@ -73,6 +75,34 @@ export function initRegistry(config: Config): void {
       creditsPerUnit: 40,
       aspectRatios: IMAGE_RATIOS,
       maxCount: 4,
+    });
+  }
+
+  if (config.minimax) {
+    models.push({
+      id: "minimax-h3",
+      name: `MiniMax H3 (channel)`,
+      kind: "video",
+      provider: new MiniMaxVideoProvider("minimax-video", config.minimax.baseUrl, config.minimax.apiKey, config.minimax.model),
+      creditsPerUnit: 150,
+      aspectRatios: VIDEO_RATIOS,
+      resolutions: ["720p", "1080p"],
+      durationRange: { min: 3, max: 10 },
+      maxCount: 2,
+    });
+  }
+
+  if (config.seedance) {
+    models.push({
+      id: "seedance-2-5",
+      name: `Seedance 2.5 (channel)`,
+      kind: "video",
+      provider: new SeedanceProvider("seedance-video", config.seedance.baseUrl, config.seedance.apiKey, config.seedance.model),
+      creditsPerUnit: 150,
+      aspectRatios: VIDEO_RATIOS,
+      resolutions: ["720p", "1080p"],
+      durationRange: { min: 3, max: 12 },
+      maxCount: 2,
     });
   }
 }

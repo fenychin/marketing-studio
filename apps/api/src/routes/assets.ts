@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { audit, db } from "../db/index.js";
-import { assetToDto, findAssetBySha, readArtifact, storeArtifact } from "../storage.js";
+import { assetToDto, findAssetByToken, readArtifact, storeArtifact } from "../storage.js";
 import { placeholderSvg, svgBuffer } from "../placeholder.js";
 
 export function registerAssetRoutes(app: FastifyInstance): void {
@@ -22,7 +22,7 @@ export function registerAssetRoutes(app: FastifyInstance): void {
     if (dot <= 0) return reply.code(404).send();
     const sha = name.slice(0, dot);
     const ext = name.slice(dot + 1);
-    const row = await findAssetBySha(sha, ext);
+    const row = await findAssetByToken(sha, ext, query.t ?? "");
     if (!row || row.access_token !== query.t) return reply.code(404).send();
     return reply.type(row.mime).send(await readArtifact(row));
   });

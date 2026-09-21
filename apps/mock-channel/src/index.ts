@@ -26,6 +26,9 @@ if (!existsSync(mp4Path)) {
 
 interface Task { id: string; createdAt: number; prompt: string }
 const tasks = new Map<string, Task>();
+const mmTasks = new Map<string, { createdAt: number; hasRef: boolean; fileId: string }>();
+const sdTasks = new Map<string, { createdAt: number; hasRef: boolean }>();
+const mmFileIds = new Map<string, string>();
 const app = http.createServer((req, res) => {
   const url = req.url ?? "";
 
@@ -40,6 +43,64 @@ const app = http.createServer((req, res) => {
       res.writeHead(201, { "content-type": "application/json" });
       res.end(JSON.stringify({ id }));
     });
+    return;
+  }
+
+  // --- MiniMax 视频协议模拟: POST /video_generation → /query → /files/retrieve ---
+  if (req.method === "POST" && url === "/video_generation") {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      const id = `mm_${Math.random().toString(36).slice(2, 10)}`;
+      const fileId = `file_${id.slice(3)}`;
+      mmTasks.set(id, { createdAt: Date.now(), hasRef: body.includes("first_frame_image"), fileId });
+      mmFileIds.set(fileId, id);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ task_id: id }));
+    });
+    return;
+  }
+  if (req.method === "GET" && url.startsWith("/query?")) {
+    const taskId = new URL(url, "http://x").searchParams.get("task_id") ?? "";
+    const task = mmTasks.get(taskId);
+    const elapsed = task ? Date.now() - task.createdAt : 0;
+    res.writeHead(200, { "content-type": "application/json" });
+    if (task && elapsed > 3000) {
+      res.end(JSON.stringify({ status: "Success", file: { file_id: task.fileId } }));
+    } else {
+      res.end(JSON.stringify({ status: "Processing" }));
+    }
+    return;
+  }
+  if (req.method === "GET" && url.startsWith("/files/retrieve?")) {
+    const fileId = new URL(url, "http://x").searchParams.get("file_id") ?? "";
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ file: { file_id: fileId, download_url: "/files/ad.mp4" } }));
+    return;
+  }
+
+  // --- Seedance(Ark contents/generations)协议模拟 ---
+  if (req.method === "POST" && url === "/contents/generations/tasks") {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      const id = `sd_${Math.random().toString(36).slice(2, 10)}`;
+      sdTasks.set(id, { createdAt: Date.now(), hasRef: body.includes("image_url") });
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ id }));
+    });
+    return;
+  }
+  if (req.method === "GET" && url.startsWith("/contents/generations/tasks/")) {
+    const taskId = url.split("/contents/generations/tasks/")[1] ?? "";
+    const task = sdTasks.get(taskId);
+    const elapsed = task ? Date.now() - task.createdAt : 0;
+    res.writeHead(200, { "content-type": "application/json" });
+    if (task && elapsed > 2500) {
+      res.end(JSON.stringify({ status: "succeeded", content: { video_url: "/files/ad.mp4" } }));
+    } else {
+      res.end(JSON.stringify({ status: "running" }));
+    }
     return;
   }
 

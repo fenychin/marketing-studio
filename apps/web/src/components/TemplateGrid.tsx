@@ -62,7 +62,11 @@ export function TemplateGrid({ onRecreate }: { onRecreate: (t: TemplateDto) => v
       <div className="columns-2 gap-3 md:columns-3 xl:columns-6 [&>*]:mb-3">
         {templates.data?.templates.map((t) => (
           <div key={t.id} className="group relative break-inside-avoid overflow-hidden rounded-xl border border-[#1e1e1e]">
-            <img src={t.thumbUrl} alt={t.title} className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+            {t.thumbUrl.split("?")[0]!.endsWith(".mp4") ? (
+              <video src={t.thumbUrl} autoPlay muted loop playsInline className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+            ) : (
+              <img src={t.thumbUrl} alt={t.title} className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+            )}
             <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/70 via-transparent to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 onClick={() => onRecreate(t)}

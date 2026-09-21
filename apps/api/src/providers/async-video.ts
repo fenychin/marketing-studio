@@ -21,6 +21,7 @@ export class AsyncVideoProvider implements ModelProvider {
     const out: ProducedArtifact[] = [];
 
     for (let i = 0; i < ctx.params.count; i++) {
+      const firstImage = ctx.references.find((r) => r.mime.startsWith("image/"));
       const submit = await fetch(`${this.baseUrl}/tasks`, {
         method: "POST",
         headers: { authorization: `Bearer ${this.apiKey}`, "content-type": "application/json" },
@@ -30,6 +31,9 @@ export class AsyncVideoProvider implements ModelProvider {
           aspect_ratio: ctx.params.aspectRatio,
           duration: ctx.params.durationSec ?? 5,
           index: i,
+          ...(firstImage
+            ? { first_frame_image: `data:${firstImage.mime};base64,${firstImage.buffer.toString("base64")}` }
+            : {}),
         }),
       });
       if (!submit.ok) throw new Error(`submit failed ${submit.status}: ${(await submit.text()).slice(0, 200)}`);

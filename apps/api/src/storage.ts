@@ -142,8 +142,12 @@ export async function storeArtifact(tenantId: string, buffer: Buffer, mime: stri
   return assetToDto(row as AssetRow);
 }
 
-export async function findAssetBySha(sha: string, ext: string): Promise<AssetRow | undefined> {
-  return db().get<AssetRow>("SELECT * FROM assets WHERE sha=? AND ext=?", [sha, ext]);
+/**
+ * sha + access_token 联合定位:同 sha 可能存在多条记录(重复导入/多租户各自
+ * 上传同一文件),令牌匹配才能取到 URL 指向的那一行——顺带消除跨租户读。
+ */
+export async function findAssetByToken(sha: string, ext: string, token: string): Promise<AssetRow | undefined> {
+  return db().get<AssetRow>("SELECT * FROM assets WHERE sha=? AND ext=? AND access_token=?", [sha, ext, token]);
 }
 
 export async function readArtifact(row: AssetRow): Promise<Buffer> {
