@@ -15,6 +15,17 @@ export function registerAssetRoutes(app: FastifyInstance): void {
     return reply.code(201).send({ asset });
   });
 
+  app.get("/v1/assets", async (request) => {
+    const query = request.query as { kind?: string; limit?: string };
+    const limit = Math.min(200, Number(query.limit ?? "100") || 100);
+    const kind = query.kind;
+    const rows = await db().all<Parameters<typeof assetToDto>[0]>(
+      `SELECT * FROM assets WHERE tenant_id=? ${kind ? "AND kind=?" : ""} ORDER BY created_at DESC LIMIT ?`,
+      kind ? [request.tenant!.id, kind, limit] : [request.tenant!.id, limit],
+    );
+    return { assets: rows.map(assetToDto) };
+  });
+
   app.get("/v1/assets/file/:name", async (request, reply) => {
     const { name } = request.params as { name: string };
     const query = request.query as { t?: string };

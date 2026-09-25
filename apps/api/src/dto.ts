@@ -57,6 +57,7 @@ export function generationToDto(row: JoinedGeneration): GenerationDto {
   return {
     id: row.id,
     jobId: row.job_id,
+    assetId: row.asset_id,
     url: assetToDto(asset).url,
     kind: row.kind,
     model: row.model,

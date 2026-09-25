@@ -10,3 +10,4 @@ hypit-main/
 **/.venv/
 # macOS
 .DS_Store
+*.tsbuildinfo

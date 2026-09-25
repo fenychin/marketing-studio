@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { Icon, icons } from "./Icons";
+import { MediaLibraryModal } from "./MediaLibraryModal";
 import type { AspectRatio, AssetDto, Kind, ModelInfo, ReferenceRole } from "@studio/shared";
 
 interface PlanPreview {
@@ -41,6 +42,7 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
   const [shot, setShot] = useState(SHOTS[0]!);
   const [refs, setRefs] = useState<ReferenceChip[]>([]);
   const [modelOpen, setModelOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const pendingRole = useRef<ReferenceRole>("product");
@@ -223,7 +225,14 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
           )}
 
           <div className="flex flex-wrap items-center gap-1.5 px-0.5 pb-0.5">
-            <button className="chip !px-2" title="Add attachment" onClick={() => openUpload("reference")}>
+            <button
+              className="chip !px-2"
+              title="添加参考素材"
+              onClick={() => {
+                pendingRole.current = "reference";
+                setLibraryOpen(true);
+              }}
+            >
               <Icon path={icons.plus} size={12} />
             </button>
 
@@ -306,6 +315,15 @@ export function PromptBar({ initialKind = "image" }: { initialKind?: Kind }) {
           </div>
         </div>
       </div>
+      {libraryOpen && (
+        <MediaLibraryModal
+          onClose={() => setLibraryOpen(false)}
+          onPick={(asset) => {
+            setRefs((prev) => [...prev.filter((r) => r.role !== pendingRole.current), { role: pendingRole.current, asset }]);
+            setLibraryOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

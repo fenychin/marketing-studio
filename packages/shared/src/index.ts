@@ -63,6 +63,8 @@ export interface AssetDto {
 export interface GenerationDto {
   id: string;
   jobId: string;
+  /** Underlying asset row — lets the media library attach a generation as a reference. */
+  assetId: string;
   url: string;
   kind: Kind;
   model: string;

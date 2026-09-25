@@ -35,6 +35,9 @@ export const icons = {
   wrench: "M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4L15 12l-3-3 2.7-2.7Z",
   close: "M6 6l12 12M18 6 6 18",
   refresh: "M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4",
+  uploadCloud: "M7 16.5A4.5 4.5 0 0 1 7.3 7.6a5.5 5.5 0 0 1 10.6 1.2A3.9 3.9 0 0 1 17.5 16.5M12 12v8M8.8 15.2 12 12l3.2 3.2",
+  sort: "M4 7h12M4 12h9M4 17h6M18 10v8M18 18l-2.5-2.5M18 18l2.5-2.5",
+  stack: "M8 4h11v11M5 8h11v11H5z",
 };
 
 export function Section({ children }: { children: ReactNode }) {
